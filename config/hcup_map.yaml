@@ -1,0 +1,50 @@
+# HCUP Column Harmonization Map
+# Maps source-specific columns to standardized schema
+
+mappings:
+  defaults:
+    year: ["YEAR", "year"]
+    admit_month: ["AMONTH", "admit_month"]
+    discharge_month: ["DMONTH", "discharge_month"]
+    visit_id: ["KEY", "VISITLINK", "key", "visit_id"]
+    person_key_candidates: ["PERSONKEY", "VISITLINK", "person_key"]
+
+    dx_primary: ["I10_DX1", "DX1", "dx1"]
+    dx_all_regex: "^(I10_)?DX[0-9]+$"
+
+    ecause_regex: "^(I10_)?ECODE[0-9]+$|^E_CODE[0-9]+$"
+
+    zip5: ["ZIP", "ZIPCODE", "ZIP5", "zip", "zip5"]
+    facility_state: ["HOSPST", "STATE", "state"]
+    facility_county_candidates: ["HOSP_COUNTY", "HOSPSTCO", "county"]
+
+    los_days: ["LOS", "los"]
+    duration_hours: ["DURATION", "duration"]
+
+  # State Inpatient Database
+  SID:
+    dx_admitting_sid: ["I10_DX_Admitting", "DX_ADMITTING", "dx_admitting"]
+
+  # State Emergency Department Database
+  SEDD:
+    dx_reason_sed_sasd: ["I10_DX_Visit_Reason1", "DXREASON1", "dx_reason"]
+
+  # State Ambulatory Surgery Database
+  SASD:
+    dx_reason_sed_sasd: ["I10_DX_Visit_Reason1", "DXREASON1", "dx_reason"]
+
+# State-specific overrides (if needed)
+state_overrides:
+  NC:
+    # North Carolina specific mappings
+  CA:
+    # California specific mappings
+
+# Year-specific overrides (for schema changes)
+year_overrides:
+  2015:
+    dx_all_regex: "^DX[0-9]+$"  # ICD-9 only
+  2016:
+    # Transition year - both ICD-9 and ICD-10
+  2017:
+    dx_all_regex: "^I10_DX[0-9]+$"  # ICD-10 only

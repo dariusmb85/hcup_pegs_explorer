@@ -1,0 +1,150 @@
+# Exposure & Covariate Configuration
+
+# Geographic resolution: "tract" or "zip5"
+geo_mode: tract
+
+# Amadeus features to extract
+features:
+  # HMS Smoke
+  - id: hms_smoke_light
+    source: hms_smoke
+    var: Smoke_light
+    agg: daily
+    description: "Light smoke density (HMS)"
+
+  - id: hms_smoke_medium
+    source: hms_smoke
+    var: Smoke_medium
+    agg: daily
+    description: "Medium smoke density (HMS)"
+
+  - id: hms_smoke_heavy
+    source: hms_smoke
+    var: Smoke_heavy
+    agg: daily
+    description: "Heavy smoke density (HMS)"
+
+  # PM2.5 from AQS monitors
+  - id: pm25_daily_mean
+    source: aqs_daily_88101
+    var: pm25
+    agg: daily_mean
+    description: "Daily mean PM2.5 (μg/m³)"
+
+  - id: pm25_daily_max
+    source: aqs_daily_88101
+    var: pm25
+    agg: daily_max
+    description: "Daily maximum PM2.5 (μg/m³)"
+
+  # Ozone
+  - id: ozone_daily_max_8hr
+    source: aqs_daily_44201
+    var: ozone
+    agg: daily_8hr_max
+    description: "Daily max 8-hour ozone (ppm)"
+
+  # Temperature (if using gridMET or similar)
+  - id: temp_mean
+    source: gridmet
+    var: temperature_mean
+    agg: daily
+    description: "Mean temperature (°C)"
+
+  - id: temp_max
+    source: gridmet
+    var: temperature_max
+    agg: daily
+    description: "Maximum temperature (°C)"
+
+# Disease phenotype definitions (ICD-10-CM codes)
+phenotypes:
+  asthma:
+    label: "Asthma"
+    icd10_prefixes: ["J45"]
+    description: "Asthma encounters"
+
+  copd:
+    label: "COPD"
+    icd10_prefixes: ["J44"]
+    description: "Chronic obstructive pulmonary disease"
+
+  respiratory_infection:
+    label: "Respiratory Infection"
+    icd10_prefixes: ["J00", "J01", "J02", "J03", "J04", "J05", "J06", "J09", "J10", "J11", "J12", "J13", "J14", "J15", "J16", "J17", "J18", "J20", "J21", "J22"]
+    description: "Acute upper and lower respiratory infections"
+
+  cardiovascular:
+    label: "Cardiovascular Disease"
+    icd10_prefixes: ["I20", "I21", "I22", "I23", "I24", "I25"]
+    description: "Ischemic heart disease"
+
+  stroke:
+    label: "Stroke"
+    icd10_prefixes: ["I60", "I61", "I62", "I63", "I64"]
+    description: "Cerebrovascular accident"
+
+  diabetes:
+    label: "Diabetes"
+    icd10_prefixes: ["E10", "E11", "E13"]
+    description: "Diabetes mellitus"
+
+  pregnancy:
+    label: "Pregnancy/Delivery"
+    icd10_prefixes: ["O"]
+    description: "Pregnancy and childbirth complications"
+
+  mental_health:
+    label: "Mental Health"
+    icd10_prefixes: ["F"]
+    description: "Mental and behavioral disorders"
+
+# Rollup aggregations (for person-month exposures)
+rollup_metrics:
+  - mean
+  - sum
+  - max
+  - p90  # 90th percentile
+  - days_available  # count of non-missing days
+  - days_above_threshold  # for threshold-based metrics
+
+# Thresholds for binary exposure indicators
+thresholds:
+  pm25_unhealthy_sensitive: 35.5  # μg/m³ (AQI orange)
+  pm25_unhealthy: 55.5  # μg/m³ (AQI red)
+  ozone_unhealthy_sensitive: 0.070  # ppm
+  temp_heat_warning: 32  # °C (~90°F)
+  temp_cold_warning: 0   # °C (32°F)
+
+# ExWAS model specifications
+exwas_models:
+  - id: logit_unadjusted
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure})"
+    description: "Unadjusted logistic regression"
+
+  - id: logit_adjusted_basic
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + month"
+    description: "Adjusted for temporal trends"
+
+  - id: logit_adjusted_full
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + month + zip5_cluster"
+    description: "Adjusted for temporal + spatial clustering"
+
+# Small cell suppression rules
+suppression:
+  min_cell_size: 11
+  apply_to:
+    - counts
+    - geographic_aggregates
+
+# Privacy settings
+privacy:
+  person_id_hash_algorithm: sha256
+  date_precision: month  # Options: day, month, year
+  geographic_precision: tract  # Options: tract, zip5, county, state
