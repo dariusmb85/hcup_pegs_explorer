@@ -36,42 +36,42 @@ init:
 
 silver:
 	@echo "==> Creating silver layer from bronze..."
-	$(R) -f r/10_hcup_silver.R
+	$(R) -f r/01_hcup_silver.R
 	@echo "✓ Silver layer complete"
 
 geocode:
 	@echo "==> Enriching with Census tracts..."
-	$(R) -f r/15_geocode_enrich.R
+	$(R) -f r/015_geocode_enrich.R
 	@echo "✓ Geocoding complete"
 
 cohort:
 	@echo "==> Building person-month cohort..."
-	$(R) -f r/40_person_month_v2.R
+	$(R) -f r/04_person_month_v2.R
 	@echo "✓ Cohort built"
 
 ingest:
 	@echo "==> Downloading and processing Amadeus data..."
-	$(R) -f r/20_amadeus_ingest.R
+	$(R) -f r/02_amadeus_ingest.R
 	@echo "✓ Amadeus data cached"
 
 extract:
 	@echo "==> Extracting daily exposures..."
-	$(R) -f r/30_exposure_extract.R
+	$(R) -f r/03_exposure_extract.R
 	@echo "✓ Exposure extraction complete"
 
 roll:
 	@echo "==> Rolling up exposures to person-month..."
-	$(R) -f r/50_join_exposures.R
+	$(R) -f r/05_join_exposures.R
 	@echo "✓ Rollup complete"
 
 exwas:
 	@echo "==> Running ExWAS..."
-	$(R) -f r/60_exwas_v2.R
+	$(R) -f r/06_exwas_v2.R
 	@echo "✓ ExWAS complete"
 
 quality:
 	@echo "==> Running data quality checks..."
-	$(R) -f r/70_data_quality.R
+	$(R) -f r/07_data_quality.R
 
 # Full pipeline from bronze → ExWAS
 pipeline: silver geocode cohort extract roll exwas
