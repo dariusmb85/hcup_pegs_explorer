@@ -58,7 +58,7 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
 
   out <- tibble::tibble(
     visit_id          = choose_first(df, m$visit_id),
-    person_id         = hash_id(person_key),
+    person_id = sapply(format(person_key, scientific=FALSE), hash_id),
     admit_date        = admit_date_month,
     discharge_date    = discharge_date_month,
     dx_primary        = choose_first(df, m$dx_primary),
