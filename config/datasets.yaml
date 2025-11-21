@@ -1,0 +1,14 @@
+# A minimal configuration to get started quickly with the most common exposures
+
+datasets:
+  # PM2.5 - Most important air pollutant for health studies
+  aqs_daily_88101:
+    version: "2024-10"
+    crs: 5070
+    description: "Daily PM2.5 from EPA monitors"
+
+  # Wildfire smoke - Increasingly important exposure
+  hms_smoke:
+    version: "2024-10"
+    crs: 5070
+    description: "Daily smoke plume coverage"
