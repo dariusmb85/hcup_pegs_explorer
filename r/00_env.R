@@ -1,5 +1,10 @@
 options(warn = 1)
 
+# Load .env file FIRST
+if (file.exists(".env")) {
+  dotenv::load_dot_env(".env")
+}
+
 if (!requireNamespace("here", quietly = TRUE)) {
   install.packages("here")
 }
@@ -35,7 +40,7 @@ invisible(
   )
 )
 
-# LOAD the packages (this was missing!)
+# LOAD the packages
 invisible(lapply(pkgs, library, character.only = TRUE))
 
 root <- Sys.getenv("PARQUET_ROOT", unset = here("data"))
