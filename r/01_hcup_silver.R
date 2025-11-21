@@ -6,10 +6,11 @@ source(here::here("r", "00_env.R"))
 
 map <- yaml::read_yaml(here::here("config", "hcup_map.yaml"))$mappings
 
-bronze_files <- fs::dir_ls(
+bronze_files <- list.files(
   paths$bronze,
-  recurse = TRUE,
-  glob = "*.parquet"
+  pattern = "\\.parquet$",
+  recursive = TRUE,
+  full.names = TRUE
 )
 
 stopifnot(length(bronze_files) > 0)
