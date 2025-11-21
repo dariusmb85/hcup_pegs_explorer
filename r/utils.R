@@ -16,7 +16,7 @@ write_parquet_ds <- function(df,
     df,
     out_dir,
     partitioning = partitioning,
-    existing_data_behavior = "overwrite_or_ignore"
+    existing_data_behavior = "overwrite"
   )
 
   invisible(out_dir)
