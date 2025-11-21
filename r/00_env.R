@@ -20,9 +20,10 @@ pkgs <- c(
   "digest",
   "readr",
   "sf",
-  "amadeus" # from NIEHS org (install per your setup)
+  "amadeus"
 )
 
+# Install if missing
 invisible(
   lapply(
     pkgs,
@@ -33,6 +34,9 @@ invisible(
     }
   )
 )
+
+# LOAD the packages (this was missing!)
+invisible(lapply(pkgs, library, character.only = TRUE))
 
 root <- Sys.getenv("PARQUET_ROOT", unset = here("data"))
 
