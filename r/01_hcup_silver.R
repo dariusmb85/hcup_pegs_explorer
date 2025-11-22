@@ -52,7 +52,7 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
   e_cols  <- names(df)[grepl(m$ecause_regex, names(df))]
 
   person_key <- choose_first(df, m$person_key_candidates)
-  if (is.null(person_key)) {
+  if (is.null(person_key) || all(is.na(person_key))) {
     person_key <- choose_first(df, m$visit_id) # fallback
   }
 
