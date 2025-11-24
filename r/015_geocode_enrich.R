@@ -34,7 +34,7 @@ download_hud_crosswalk <- function(year = 2024, quarter = 3, cache_dir = paths$a
   df <- do.call(rbind, lapply(data$data$results, function(x) {
     data.frame(
       zip = x$zip,
-      tract = x$tract,
+      tract = x$geoid,
       res_ratio = as.numeric(x$res_ratio),
       stringsAsFactors = FALSE
     )
