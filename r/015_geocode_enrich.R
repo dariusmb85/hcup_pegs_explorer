@@ -1,80 +1,113 @@
 # r/015_geocode_enrich.R
-# Enrich silver visits with Census tract GEOIDs using HUD ZIP-Tract crosswalk
+# Enrich silver visits with Census tract GEOIDs using HUD ZIP-Tract crosswalk API
 
 source(here::here("r", "00_env.R"))
 
-# Download HUD USPS ZIP-Tract crosswalk via API
+# Download HUD USPS ZIP-Tract crosswalk via authenticated API
 download_hud_crosswalk <- function(year = 2024, quarter = 3, cache_dir = paths$am_cache) {
+  require(httr)
+  require(jsonlite)
+  
   dir_create(path(cache_dir, "hud_crosswalk"))
-  out_file <- path(cache_dir, "hud_crosswalk", glue("ZIP_TRACT_{year}Q{quarter}.csv"))
+  out_file <- path(cache_dir, "hud_crosswalk", glue("ZIP_TRACT_{year}Q{quarter}.rds"))
   
   if (file_exists(out_file)) {
     message("Using cached crosswalk: ", out_file)
-    return(out_file)
+    return(readRDS(out_file))
   }
   
-  # Use HUD API
-  url <- glue("https://www.huduser.gov/hudapi/public/usps?type=5&query=All&year={year}&quarter={quarter}")
-  message("Downloading HUD crosswalk for ", year, " Q", quarter, "...")
+  # Get API key from environment
+  api_key <- Sys.getenv("HUD_API_KEY")
+  if (nchar(api_key) == 0) {
+    stop("HUD_API_KEY not found in .env file. Please add it.")
+  }
+  
+  message("Downloading HUD crosswalk for ", year, " Q", quarter, " via API...")
+  
+  # Use HUD API - type=5 for ZIP-Tract crosswalk, query=All for all states
+  url <- "https://www.huduser.gov/hudapi/public/usps"
   
   tryCatch({
-    download.file(url, out_file, mode = "wb", quiet = FALSE)
-    return(out_file)
-  }, error = function(e) {
-    warning("Failed to download ", year, " Q", quarter, " crosswalk: ", e$message)
-    return(NULL)
+    response <- httr::GET(
+      url, 
+      query = list(type = 5, query = "All", year = year, quarter = quarter),
+      add_headers(Authorization = paste("Bearer", api_key))
+    )
+    
+    # Check for errors
+    if (httr::http_error(response)) {
+      stop("API request failed with status: ", httr::status_code(response))
+    }
+    
+    # Parse JSON response
+    data <- httr::content(response, as = "parsed", type = "application/json")
+    
+    # Convert to data frame
+    df <- data.frame(
+      zip = sapply(data$data$results, function(x) x$zip),
+      tract = sapply(data$data$results, function(x) x$tract),
+      res_ratio = sapply(data$data$results, function(x) as.numeric(x$res_ratio)),
+      bus_ratio = sapply(data$data$results, function(x) as.numeric(x$bus_ratio)),
+      oth_ratio = sapply(data$data$results, function(x) as.numeric(x$oth_ratio)),
+      tot_ratio = sapply(data$data$results, function(x) as.numeric(x$tot_ratio)),
+      stringsAsFactors = FALSE
+    )
+    
+    message("Downloaded ",     messag" Z    message("Downloaded 
+    # Cache th    # Cache th    # Cache th    # Cache th    # Cache th    # }, error = function(e) {
+    stop("Failed to download HUD crosswalk: ", e$message)
   })
 }
 
-# Load and prepare crosswalk
-prepare_crosswalk <- function(xwalk_file) {
-  require(readr)
-  
-  xw <- read_csv(xwalk_file, show_col_types = FALSE) %>%
-    janitor::clean_names() %>%
+# Prepare crosswalk for joining
+prepare_crosswalk <- function(xw_data) {
+  xw <- xw_data %>%
     transmute(
       zip5 = as.character(zip),
-      tract_geoid = as.characte      tract_geoid = as.characte      tract_geoid = as.characte      tract_geoid = as.chao),
-      oth_ratio = as.numeric(oth_ratio),
+      tract_geoid = as.character(tract),
+      res_ratio = as.numeric(res_ratio),
+      bus_ratio = as.numeric(bus_ratio),
+      oth_ratio =      oth_ratio =atio),
       tot_ratio = as.numeric(tot_ratio)
     ) %>%
     # Use residential ratio as primary weight, fallback to total
     mutate(weight = coalesce(res_ratio, tot_ratio)) %>%
-    # For each ZIP, take the tract(s) with highest allocation
+    # For each ZIP, take the tract with highest allocation
     group_by(zip5) %>%
     arrange(desc(weight)) %>%
-    slice_head(n = 3) %>%  # Keep top 3 tracts per ZIP
+    slice_head(n = 1) %>%
     ungroup()
   
   return(xw)
 }
 
-# Main enrichment function
-enrich_visits_with_tracts <- function(year = 2024, quarter = 3) {
-  message("\n=== Enriching visits with tract GEOIDs ===\n")
+# Main enrichment func# Main enrichment func# Main enrichment func# Main enrichment func# Main enriche("\n=== Enriching visits with tract GEOIDs ===\n")
   
   # Download/load crosswalk
-  xwalk_file <- download_hud_crosswalk(year = year, quarter = quarter)
-  i  i  i  i  i  i  i  i  i      stop("Could not obtain crosswalk file")
-  }
+  xw_data <- download_hud_crosswalk(year = year, quarter = quarter)
+  xw <- prepare_crosswalk(xw_data)
   
-  xw <- prepare_  xw <- prepare_  xw <- presage("Loaded ", nrow(xw), " ZIP-Tract mappings")
+  message("Prepared ", nrow(xw), " unique ZIP→Tract mappings")
   
   # Load visits
-  visits <- read_ds(path(paths$silver, "  visits <- read_ds(path(paths$silver, "  visits <- read_ds(path(paths$silver, "  visits <- read_ds(path(paths$silver, "mar  visits <- read_ds(path(pathsits_enriched <- visits %>%
+  visits <- read_ds(path(paths$silver, "visit")) %>%
+    collect()
+  
+  message("Processing ", format(nrow(visits), big.mark=","), " visits...")
+  
+  # Join with crosswalk
+  visits_enriched <- visits %>%
     left_join(
-      xw %>%
-        group_by(zip5) %>%
-        slice_head(n = 1) %>%
-        select        select        select        select        sel%>%
+      xw %>% select(zip5, tract_geoid, weight),
+      by = "zip5"
+    ) %>%
     select(-weight)
   
   # Report enrichment success
   n_enriched <- sum(!is.na(visits_enriched$tract_geoid))
-  pct_enriched <- round(100 * n_enriched / nrow(visits_enriched), 1)
-  
+  pct_enriched <-   pct_enriched <-   pct_enriched <-   pct_enriched <-
   message(glue("\nEnrichment complete:"))
-  message(glue("  {n_enriched} / {nrow(visits_enriched)} visits ({pct_enriched}%) matched to tracts"))
+  message(glue("  {format(n_enriched, big.mark=',')} / {format(nrow(visits_enriched), big.mark=',')} visits ({pct_enriched}%) matched to tracts"))
   
   # Write back to silver
   arrow::write_dataset(
@@ -84,7 +117,7 @@ enrich_visits_with_tracts <- function(year = 2024, quarter = 3) {
     existing_data_behavior = "overwrite"
   )
   
-  message("\nUpdated silver/visit dataset")
+  message("\n✓ Updated silver/visit dataset with tract_geoid column")
   
   invisible(visits_enriched)
 }
