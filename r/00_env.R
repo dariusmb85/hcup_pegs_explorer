@@ -25,7 +25,8 @@ pkgs <- c(
   "digest",
   "readr",
   "sf",
-  "amadeus"
+  "amadeus",
+  "httr"
 )
 
 # Install if missing
