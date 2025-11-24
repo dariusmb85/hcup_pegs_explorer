@@ -1,0 +1,38 @@
+# Environment variables (contains secrets)
+.env
+.env.local
+
+# Data directories (too large for git)
+data/
+data_test/
+*.parquet
+*.duckdb
+*.csv
+*.xlsx
+
+# R files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Cache directories
+data/amadeus_cache/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.log
+/tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
