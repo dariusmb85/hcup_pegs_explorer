@@ -40,7 +40,7 @@ download_hud_crosswalk <- function(year = 2024, quarter = 3, cache_dir = paths$a
     )
   }))
   
-  message("Downloaded ", nrow(df), " mappings"  message("Downloaded ", nrow(df),(df)
+  message("Downloaded ", format(nrow(df), big.mark=","), " mappings")
 }
 
 enrich_visits_with_tracts <- function() {
