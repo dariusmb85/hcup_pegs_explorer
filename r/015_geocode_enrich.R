@@ -21,7 +21,7 @@ download_hud_crosswalk <- function(year = 2024, quarter = 3, cache_dir = paths$a
   
   response <- httr::GET(
     url, 
-    query = list(type = 5, query = "All", year = year, quarter = quarter),
+    query = list(type = 1, query = "All", year = year, quarter = quarter),
     add_headers(Authorization = paste("Bearer", api_key))
   )
   
