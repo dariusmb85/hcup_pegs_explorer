@@ -41,6 +41,8 @@ download_hud_crosswalk <- function(year = 2024, quarter = 3, cache_dir = paths$a
   }))
   
   message("Downloaded ", format(nrow(df), big.mark=","), " mappings")
+  saveRDS(df, out_file)
+  return(df)
 }
 
 enrich_visits_with_tracts <- function() {
