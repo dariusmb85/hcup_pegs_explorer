@@ -66,9 +66,9 @@ enrich_visits_with_tracts <- function() {
     left_join(xw %>% select(zip5, tract_geoid), by = "zip5")
   
   n_enriched <- sum(!is.na(visits_enriched$tract_geoid))
-  pct <- round(100 * n_enriched  pct <- round(100 * n_enriched  pct <- roundnriched, " / ",
-                                              nrow(visits_enriched), " (", pct, "%) matched")
+  pct <- round(100 * n_enriched / nrow(visits_enriched), 1)
   
+  message(format(n_enriched, big.mark=","), " / ", format(nrow(visits_enriched), big.mark=","), " (", pct, "%) matched")
   arrow::write_dataset(
     visits_enriched,
     path(paths$silver, "visit"),
