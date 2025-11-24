@@ -21,6 +21,10 @@ mappings:
     los_days: ["LOS", "los"]
     duration_hours: ["DURATION", "duration"]
 
+    age: ["AGE"]
+    sex: ["FEMALE"]
+    race: ["RACE"]
+
   # State Inpatient Database
   SID:
     dx_admitting_sid: ["I10_DX_Admitting", "DX_ADMITTING", "dx_admitting"]

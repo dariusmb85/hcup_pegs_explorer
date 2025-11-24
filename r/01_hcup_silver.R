@@ -97,6 +97,12 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
     ),
     duration_hours    = suppressWarnings(
       as.numeric(choose_first(df, m$duration_hours))
+    ),
+    age = suppressWarnings(as.numeric(choose_first(df, c("AGE")))
+    ),
+    female = suppressWarnings(as.numeric(choose_first(df, c("FEMALE")))
+    ),
+    race = suppressWarnings(as.numeric(choose_first(df, c("RACE")))
     )
   )
 
