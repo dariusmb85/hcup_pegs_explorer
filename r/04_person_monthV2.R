@@ -7,18 +7,26 @@ source(here::here("r", "00_env.R"))
 pheno_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$phenotypes
 
 # Function to check if diagnosis matches phenotype
-dx_matches_phenotype <- function(dx_codes, icd10_prefixes) {
-  if (is.na(dx_codes) || dx_codes == "") return(FALSE)
+dx_matches_phenotype <- function(dx_codes, icd9_prefixes = NULL, icd10_prefixes = NULL) {
+  if (is.null(dx_codes) || all(is.na(dx_codes))) return(FALSE)
 
-  # Split concatenated codes
-  codes <- str_split(dx_codes, ";")[[1]]
-
-  # Check if any code starts with any of the prefixes
-  any(sapply(codes, function(code) {
-    any(sapply(icd10_prefixes, function(prefix) {
-      startsWith(code, prefix)
+  # Check ICD-9 codes (numeric, 3-5 digits)
+  icd9_match <- FALSE
+  if (!is.null(icd9_prefixes) && length(icd9_prefixes) > 0) {
+    icd9_match <- any(sapply(icd9_prefixes, function(prefix) {
+      grepl(paste0("^", prefix), dx_codes)
     }))
-  }))
+  }
+
+  # Check ICD-10 codes (alphanumeric, starts with letter)
+  icd10_match <- FALSE
+  if (!is.null(icd10_prefixes) && length(icd10_prefixes) > 0) {
+    icd10_match <- any(sapply(icd10_prefixes, function(prefix) {
+      grepl(paste0("^", prefix), dx_codes)
+    }))
+  }
+
+  return(icd9_match || icd10_match)
 }
 
 # Vectorized version
@@ -29,10 +37,7 @@ create_phenotype_flags <- function(df, phenotypes) {
     flag_col <- paste0(pheno_name, "_flag")
 
     df[[flag_col]] <- sapply(df$dx_primary, function(dx) {
-      if (is.na(dx) || dx == "") return(FALSE)
-      any(sapply(pheno_def$icd10_prefixes, function(prefix) {
-        startsWith(dx, prefix)
-      }))
+      dx_matches_phenotype(dx, pheno_def$icd9_prefixes, pheno_def$icd10_prefixes)
     })
 
     message(glue("Created {flag_col}: {sum(df[[flag_col]], na.rm=TRUE)} positive cases"))
