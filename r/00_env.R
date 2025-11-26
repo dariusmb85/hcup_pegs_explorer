@@ -26,7 +26,8 @@ pkgs <- c(
   "readr",
   "sf",
   "amadeus",
-  "httr"
+  "httr",
+  "dataverse"
 )
 
 # Install if missing
