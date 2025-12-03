@@ -27,7 +27,6 @@ cat("=== Downloading Environmental Exposures from Dataverse ===\n\n")
 cache_dir <- path(paths$am_cache, "dataverse")
 dir_create(cache_dir)
 zip_file <- path(cache_dir, TARGET_FILENAME)
-extracted_dir <- path(cache_dir, "zip_monthly_long")
 
 # Download if not cached
 if (file_exists(zip_file)) {
@@ -35,44 +34,29 @@ if (file_exists(zip_file)) {
 } else {
   cat("Downloading", TARGET_FILENAME, "from Dataverse...\n")
 
-  # Get dataset to find file ID
-  dataset <- get_dataset(DATAVERSE_DOI)
-
-  target_file <- NULL
-  for (file in dataset$files) {
-    if (file$label == TARGET_FILENAME) {
-      target_file <- file
-      cat("  File ID:", file$dataFile$id, "\n")
-      cat("  Size:", round(file$dataFile$filesize / 1024^2, 1), "MB\n")
-      break
-    }
-  }
-
-  if (is.null(target_file)) {
-    stop("Could not find file: ", TARGET_FILENAME)
-  }
-
-  # Download
-  writeBin(
-    get_file(target_file$dataFile$id, DATAVERSE_DOI),
-    zip_file
+  # Download directly by filename
+  file_content <- get_file_by_name(
+    filename = TARGET_FILENAME,
+    dataset = DATAVERSE_DOI,
+    server = SERVER
   )
-  cat("Downloaded successfully\n")
+
+  writeBin(file_content, zip_file)
+  cat("Downloaded successfully (", round(file.size(zip_file) / 1024^2, 1), "MB )\n")
 }
 
-# Extract if needed
-if (!dir_exists(extracted_dir)) {
+# Extract
+extracted_dir <- path(cache_dir, "zip_monthly_long_extracted")
+dir_create(extracted_dir)
+
+if (length(list.files(extracted_dir)) == 0) {
   cat("\nExtracting zip file...\n")
-  unzip(zip_file, exdir = cache_dir)
-  cat("Extracted to:", cache_dir, "\n")
+  unzip(zip_file, exdir = extracted_dir)
+  cat("Extracted\n")
 }
 
-# Find the parquet file inside
-parquet_files <- list.files(extracted_dir, pattern = "\\.parquet$", full.names = TRUE)
-if (length(parquet_files) == 0) {
-  # Maybe it extracted directly to cache_dir
-  parquet_files <- list.files(cache_dir, pattern = ".*monthly.*long.*\\.parquet$", full.names = TRUE)
-}
+# Find parquet file
+parquet_files <- list.files(extracted_dir, pattern = "\\.parquet$", full.names = TRUE, recursive = TRUE)
 
 if (length(parquet_files) == 0) {
   stop("No parquet files found after extraction")
