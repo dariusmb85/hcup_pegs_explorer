@@ -101,7 +101,7 @@ cat("\nFiltering exposures to match cohort geography and time...\n")
 exposures_filtered <- exposures_raw %>%
   filter(
     year >= min_year & year <= max_year,
-    zip %in% cohort_zips,  # Only ZIPs in your cohort
+    geoid %in% cohort_zips,  # Only ZIPs in your cohort
     grepl("pm25|smoke|hms", variable, ignore.case = TRUE)
   )
 
