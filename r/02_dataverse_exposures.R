@@ -91,6 +91,10 @@ cat("Cohort year range:", min_year, "-", max_year, "\n")
 cohort_zips <- unique(person_months$zip5)
 cat("Cohort has", length(cohort_zips), "unique ZIP codes\n")
 
+# Show available variables
+cat("\nAvailable variables (sample):\n")
+print(head(unique(exposures_raw$variable), 20))
+
 # Filter exposures to match cohort
 cat("\nFiltering exposures to match cohort geography and time...\n")
 
@@ -104,7 +108,7 @@ exposures_filtered <- exposures_raw %>%
 cat("Filtered data:", format(nrow(exposures_filtered), big.mark=","), "rows\n")
 
 if (nrow(exposures_filtered) > 0) {
-  cat("Variables included:\n")
+  cat("\nVariables included:\n")
   print(unique(exposures_filtered$variable))
 
   # Save to gold layer
