@@ -68,9 +68,12 @@ cat("\nFound parquet file:", basename(parquet_files[1]), "\n")
 cat("Loading exposure data...\n")
 exposures_raw <- read_parquet(parquet_files[1])
 
+numeric_years <- suppressWarnings(as.integer(exposures_raw$year))
+numeric_years <- numeric_years[!is.na(numeric_years)]
+
 cat("Raw data dimensions:", format(nrow(exposures_raw), big.mark=","), "rows x", ncol(exposures_raw), "cols\n")
 cat("Sample columns:", paste(head(names(exposures_raw), 10), collapse=", "), "\n")
-cat("Year range:", min(exposures_raw$year, na.rm=TRUE), "-", max(exposures_raw$year, na.rm=TRUE), "\n")
+cat("Year range:", min(numeric_years), "-", max(numeric_years), "\n")
 
 # Show unique variables
 cat("\nAvailable variables (first 20):\n")
@@ -85,11 +88,25 @@ cohort_years <- sort(unique(person_months$year))
 min_year <- min(cohort_years, na.rm = TRUE)
 max_year <- max(cohort_years, na.rm = TRUE)
 
-cat("Cohort year range:", min_year, "-", max_year, "\n")
-
 # Get unique ZIPs from cohort
 cohort_zips <- unique(person_months$zip5)
-cat("Cohort has", length(cohort_zips), "unique ZIP codes\n")
+
+cat("Cohort year range:", min_year, "-", max_year, "\n")
+cat("Cohort has", format(length(cohort_zips), big.mark=","), "unique ZIP codes\n")
+
+# Define exposure variables we want
+exposure_vars <- c(
+  # HMS wildfire smoke
+  "prop_light_coverage",
+  "prop_med_coverage",
+  "prop_heavy_coverage",
+  # PM2.5 proxy (dust + black carbon)
+  "dusmass25",
+  "bcsmass",
+  # Temperature (potential confounder)
+  "tmax",
+  "tmin"
+)
 
 # Show available variables
 cat("\nAvailable variables (sample):\n")
@@ -100,9 +117,10 @@ cat("\nFiltering exposures to match cohort geography and time...\n")
 
 exposures_filtered <- exposures_raw %>%
   filter(
-    year >= min_year & year <= max_year,
-    geoid %in% cohort_zips,  # Only ZIPs in your cohort
-    grepl("pm25|smoke|hms", variable, ignore.case = TRUE)
+    year %in% as.character(2010:2024),  # Only actual years
+    year %in% as.character(min_year:max_year),  # Then our range
+    geoid %in% cohort_zips,
+    variable %in% exposure_vars
   )
 
 cat("Filtered data:", format(nrow(exposures_filtered), big.mark=","), "rows\n")
