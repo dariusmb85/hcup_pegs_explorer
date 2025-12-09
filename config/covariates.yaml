@@ -24,7 +24,7 @@ features:
     agg: month
     description: "Proportion of heavy wilfire smoke cover"
 
-  # PM2.5 from AQS monitors
+  # PM2.5 dust concentration from merra2
   - id: pm25_dust
     source: merra2
     var: dusmass25
