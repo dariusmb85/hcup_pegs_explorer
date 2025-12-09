@@ -7,35 +7,35 @@ geo_mode: tract
 features:
   # HMS Smoke
   - id: hms_smoke_light
-    source: hms_smoke
-    var: Smoke_light
-    agg: daily
-    description: "Light smoke density (HMS)"
+    source: hms
+    var: prop_light_coverage
+    agg: month
+    description: "Proportion of light wilfire smoke cover"
 
   - id: hms_smoke_medium
-    source: hms_smoke
-    var: Smoke_medium
-    agg: daily
-    description: "Medium smoke density (HMS)"
+    source: hms
+    var: prop_med_coverage
+    agg: month
+    description: "Proportion of medium wilfire smoke cover"
 
   - id: hms_smoke_heavy
-    source: hms_smoke
-    var: Smoke_heavy
-    agg: daily
-    description: "Heavy smoke density (HMS)"
+    source: hms
+    var: prop_heavy_coverage
+    agg: month
+    description: "Proportion of heavy wilfire smoke cover"
 
   # PM2.5 from AQS monitors
-  - id: pm25_daily_mean
-    source: aqs_daily_88101
-    var: pm25
-    agg: daily_mean
-    description: "Daily mean PM2.5 (μg/m³)"
+  - id: pm25_dust
+    source: merra2
+    var: dusmass25
+    agg: zip-month-year
+    description: "Dust surface mass concentration, particles <2.5 μm (kg m⁻³)"
 
-  - id: pm25_daily_max
-    source: aqs_daily_88101
-    var: pm25
+  - id: pm25_black_carbon
+    source: merra2
+    var: bcsmass
     agg: daily_max
-    description: "Daily maximum PM2.5 (μg/m³)"
+    description: "Black carbon surface mass concentration (kg m⁻³)"
 
   # Ozone
   - id: ozone_daily_max_8hr
@@ -45,17 +45,29 @@ features:
     description: "Daily max 8-hour ozone (ppm)"
 
   # Temperature (if using gridMET or similar)
-  - id: temp_mean
+  - id: temp_min
     source: gridmet
-    var: temperature_mean
+    var: tmmn
     agg: daily
     description: "Mean temperature (°C)"
 
   - id: temp_max
     source: gridmet
-    var: temperature_max
+    var: tmmx
     agg: daily
     description: "Maximum temperature (°C)"
+
+  # Temperature
+  - id: temp_maximum
+    source: terra_climate
+    var: tmax
+    description: "Maximum temperature (°C)"
+
+  - id: temp_minimum
+    source: terra_climate
+    var: tmin
+    description: "Minimum temperature (°C)"
+
 
 # Disease phenotype definitions (ICD-10-CM codes)
 phenotypes:
