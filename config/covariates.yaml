@@ -169,12 +169,6 @@ exwas_models:
     formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type"
     description: "Adjusted for year, season, and database type"
 
-  - id: logit_adjusted_full
-    outcome_type: binary
-    family: binomial
-    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type + zip5"
-    description: "Fully adjusted (temporal + spatial clustering)"
-
 # Small cell suppression rules
 suppression:
   min_cell_size: 11
