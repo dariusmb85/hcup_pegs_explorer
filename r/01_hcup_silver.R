@@ -102,9 +102,9 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
     ),
     female = suppressWarnings(as.numeric(choose_first(df, c("FEMALE")))
     ),
-    race = suppressWarnings(as.numeric(choose_first(df, c("RACE"))),
+    race = suppressWarnings(as.numeric(choose_first(df, c("RACE")))
+    ),
     db_type = db_type
-    )
   )
 
   out
