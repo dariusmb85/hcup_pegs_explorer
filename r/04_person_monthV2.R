@@ -67,29 +67,33 @@ main <- function() {
   pm <- vis_flagged %>%
     transmute(
       person_id,
-      ym = admit_date,  # already first-of-month from silver processing
+      ym = admit_date,
       zip5,
       tract_geoid,
       n_visits = 1L,
-      across(all_of(pheno_cols), ~.)  # carry through all phenotype flags
+      db_type,  # ADDED
+      across(all_of(pheno_cols), ~.)
     ) %>%
     group_by(person_id, ym) %>%
     summarise(
-      # Take last non-missing geography
       zip5 = last(na.omit(zip5)),
       tract_geoid = last(na.omit(tract_geoid)),
-
-      # Sum visits
       n_visits = sum(n_visits, na.rm = TRUE),
-
-      # Any() across all phenotype flags
+      # Aggregate db_type (comma-separated if multiple visit types)
+      db_type = paste(unique(na.omit(db_type)), collapse=","),  # ADDED
       across(all_of(pheno_cols), ~any(., na.rm = TRUE)),
-
       .groups = "drop"
     ) %>%
     mutate(
       year = lubridate::year(ym),
-      month = lubridate::month(ym)
+      month = lubridate::month(ym),
+      # Add season variable
+      season = case_when(
+        month %in% c(12, 1, 2) ~ "winter",
+        month %in% c(3, 4, 5) ~ "spring",
+        month %in% c(6, 7, 8) ~ "summer",
+        month %in% c(9, 10, 11) ~ "fall"
+      )  # ADDED
     )
 
   # Report summary
