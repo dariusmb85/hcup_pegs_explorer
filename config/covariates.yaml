@@ -157,17 +157,23 @@ exwas_models:
     formula_template: "{outcome} ~ scale({exposure})"
     description: "Unadjusted logistic regression"
 
-  - id: logit_adjusted_basic
+  - id: logit_adjusted_temporal
     outcome_type: binary
     family: binomial
-    formula_template: "{outcome} ~ scale({exposure}) + year + month"
-    description: "Adjusted for temporal trends"
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season)"
+    description: "Adjusted for year and season (controls temporal confounding)"
+
+  - id: logit_adjusted_dbtype
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type"
+    description: "Adjusted for year, season, and database type"
 
   - id: logit_adjusted_full
     outcome_type: binary
     family: binomial
-    formula_template: "{outcome} ~ scale({exposure}) + year + month + zip5_cluster"
-    description: "Adjusted for temporal + spatial clustering"
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type + zip5"
+    description: "Fully adjusted (temporal + spatial clustering)"
 
 # Small cell suppression rules
 suppression:
