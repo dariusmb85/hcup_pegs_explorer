@@ -151,23 +151,71 @@ thresholds:
 
 # ExWAS model specifications
 exwas_models:
-  - id: logit_unadjusted
+  # Overall models
+  - id: logit_unadjusted_overall
+    strata: all
     outcome_type: binary
     family: binomial
     formula_template: "{outcome} ~ scale({exposure})"
-    description: "Unadjusted logistic regression"
+    description: "Unadjusted - All"
 
-  - id: logit_adjusted_temporal
+  - id: logit_adjusted_temporal_overall
+    strata: all
     outcome_type: binary
     family: binomial
     formula_template: "{outcome} ~ scale({exposure}) + year + factor(season)"
-    description: "Adjusted for year and season (controls temporal confounding)"
+    description: "Temporal adjusted - All"
 
-  - id: logit_adjusted_dbtype
+  - id: logit_adjusted_full_overall
+    strata: all
     outcome_type: binary
     family: binomial
-    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type"
-    description: "Adjusted for year, season, and database type"
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type + age + female + race"
+    description: "Fully adjusted - All"
+
+  # Male-only models
+  - id: logit_unadjusted_male
+    strata: male
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure})"
+    description: "Unadjusted - Males"
+
+  - id: logit_adjusted_temporal_male
+    strata: male
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season)"
+    description: "Temporal adjusted - Males"
+
+  - id: logit_adjusted_full_male
+    strata: male
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type + age + race"
+    description: "Fully adjusted - Males"
+
+  # Female-only models
+  - id: logit_unadjusted_female
+    strata: female
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure})"
+    description: "Unadjusted - Females"
+
+  - id: logit_adjusted_temporal_female
+    strata: female
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season)"
+    description: "Temporal adjusted - Females"
+
+  - id: logit_adjusted_full_female
+    strata: female
+    outcome_type: binary
+    family: binomial
+    formula_template: "{outcome} ~ scale({exposure}) + year + factor(season) + db_type + age + race"
+    description: "Fully adjusted - Females"
 
 # Small cell suppression rules
 suppression:

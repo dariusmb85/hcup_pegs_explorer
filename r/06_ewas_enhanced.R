@@ -1,5 +1,5 @@
-# r/06_exwas_enhanced.R
-# Environment-Wide Association Study using config-driven approach
+# r/06_exwas_stratified.R
+# Sex-stratified Environment-Wide Association Study
 
 source(here::here("r", "00_env.R"))
 
@@ -9,9 +9,9 @@ library(tidyr)
 library(broom)
 library(yaml)
 
-# Load configurations
-cat("=== Running Enhanced ExWAS ===\n\n")
+cat("=== Running Sex-Stratified ExWAS ===\n\n")
 
+# Load configurations
 pheno_cfg <- read_yaml(here::here("config", "covariates.yaml"))$phenotypes
 model_cfg <- read_yaml(here::here("config", "covariates.yaml"))$exwas_models
 feature_cfg <- read_yaml(here::here("config", "covariates.yaml"))$features
@@ -28,6 +28,15 @@ cat("Features:", length(feature_cfg), "\n")
 
 # Fit single exposure-outcome pair
 fit_exposure_outcome <- function(wide_df, exposure_var, outcome_var, model_spec) {
+
+  # Apply strata filter
+  if (!is.null(model_spec$strata) && model_spec$strata != "all") {
+    if (model_spec$strata == "male") {
+      wide_df <- wide_df %>% filter(female == 0)
+    } else if (model_spec$strata == "female") {
+      wide_df <- wide_df %>% filter(female == 1)
+    }
+  }
 
   # Prepare data
   df <- wide_df %>%
@@ -68,6 +77,7 @@ fit_exposure_outcome <- function(wide_df, exposure_var, outcome_var, model_spec)
       outcome = outcome_var,
       exposure_id = exposure_var,
       model_spec_id = model_spec$id,
+      strata = model_spec$strata %||% "all",
       n = nrow(df),
       n_cases = n_cases,
       estimate = coef_summary$estimate,
@@ -88,6 +98,7 @@ fit_exposure_outcome <- function(wide_df, exposure_var, outcome_var, model_spec)
 run_exwas_model <- function(wide_df, exposure_cols, outcome_cols, model_spec) {
 
   cat("\nRunning model:", model_spec$id, "\n")
+  cat("  Strata:", model_spec$strata %||% "all", "\n")
   cat("  Formula:", model_spec$formula_template, "\n")
 
   # All combinations
@@ -130,6 +141,8 @@ main <- function() {
     collect()
 
   cat("  Person-months:", format(nrow(pm), big.mark=","), "\n")
+  cat("  Males:", format(sum(pm$female == 0, na.rm=TRUE), big.mark=","), "\n")
+  cat("  Females:", format(sum(pm$female == 1, na.rm=TRUE), big.mark=","), "\n")
 
   # Load exposure rollup
   cat("Loading exposure rollup...\n")
@@ -165,10 +178,10 @@ main <- function() {
     run_exwas_model(wide, exposure_cols, outcome_cols, model_spec)
   }))
 
-  # Multiple testing correction
+  # Multiple testing correction within strata
   cat("\nApplying multiple testing correction...\n")
   all_results <- all_results %>%
-    group_by(model_spec_id) %>%
+    group_by(model_spec_id, strata) %>%
     mutate(
       p.adj.fdr = p.adjust(p_value, method = "fdr"),
       p.adj.bonferroni = p.adjust(p_value, method = "bonferroni")
@@ -179,7 +192,7 @@ main <- function() {
   # Summary
   cat("\n=== Results Summary ===\n")
   summary_stats <- all_results %>%
-    group_by(model_spec_id) %>%
+    group_by(model_spec_id, strata) %>%
     summarise(
       n_tests = n(),
       n_sig_p05 = sum(p_value < 0.05),
@@ -188,17 +201,17 @@ main <- function() {
       .groups = "drop"
     )
 
-  print(summary_stats)
+  print(summary_stats, n = Inf)
 
-  # Top hits
-  cat("\n=== Top 10 Associations ===\n")
+  # Top hits overall
+  cat("\n=== Top 10 Associations (All Strata) ===\n")
   top_hits <- all_results %>%
     head(10) %>%
     mutate(
       or_ci = sprintf("%.2f (%.2f-%.2f)", or, or_ci_low, or_ci_high),
       exposure_label = feature_labels[exposure_id]
     ) %>%
-    select(model_spec_id, outcome, exposure_label, n_cases, or_ci, p_value, p.adj.fdr)
+    select(strata, model_spec_id, outcome, exposure_label, n_cases, or_ci, p_value)
 
   print(top_hits, n = 10)
 
@@ -206,11 +219,11 @@ main <- function() {
   cat("\nWriting results...\n")
   write_parquet_ds(
     all_results,
-    path(paths$gold, "exwas_result"),
-    partitioning = c("model_spec_id")
+    path(paths$gold, "exwas_result_stratified"),
+    partitioning = c("strata", "model_spec_id")
   )
 
-  cat("\n✓ Enhanced ExWAS complete\n")
+  cat("\n✓ Sex-Stratified ExWAS complete\n")
 
   invisible(all_results)
 }
