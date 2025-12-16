@@ -228,23 +228,7 @@ data_test/
 
 ---
 
-## Scaling Considerations
 
-### Current (Test): 3 HCUP files, 2.9M person-months
-- Runtime: ~2 hours (pipeline) + 12 hours (ExWAS)
-- Memory: 48GB peak
-- Storage: ~10GB
-
-### Production Target: 4 states × 5 years, ~40M person-months
-- Estimated runtime: ~10 hours (pipeline) + 3-5 days (ExWAS)
-- Memory: 256GB+ recommended
-- Storage: ~500GB
-
-**Optimization strategies under development:**
-- Chunk processing for large states
-- Distributed ExWAS computation
-- Parquet partitioning schemes
-- Memory-efficient joins
 
 ---
 
