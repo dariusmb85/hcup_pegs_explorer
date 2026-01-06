@@ -1,4 +1,3 @@
-cat > r/07_data_quality.R << 'REOF'
 # r/07_data_quality.R
 # Comprehensive data quality checks and cleaning
 
