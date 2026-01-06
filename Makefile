@@ -243,6 +243,52 @@ clean-all:
 # ============================================================================
 
 .PHONY: submit_exwas_overall.slurm submit_exwas_male.slurm submit_exwas_female.slurm
-MAKEFILE_EOF
 
-echo "✓ Makefile updated"
+# ============================================================================
+# Quality Checks (Multi-Stage)
+# ============================================================================
+
+quality-silver: silver
+	@echo "==> Running visit-level quality checks..."
+	@mkdir -p logs
+	$(R) r/07_data_quality_silver.R 2>&1 | tee logs/quality_silver_$$(date +%Y%m%d_%H%M%S).log
+	@echo "✓ Visit-level QC complete"
+	@echo "Review: data_test/gold/quality_checks/silver/"
+
+quality-cohort: cohort
+	@echo "==> Running cohort-level quality checks..."
+	@mkdir -p logs
+	$(R) r/07_data_quality_cohort.R 2>&1 | tee logs/quality_cohort_$$(date +%Y%m%d_%H%M%S).log
+	@echo "✓ Cohort-level QC complete"
+	@echo "Review: data_test/gold/quality_checks/cohort/"
+
+quality-results: exwas
+	@echo "==> Validating ExWAS results..."
+	@mkdir -p logs
+	$(R) r/07_data_quality_results.R 2>&1 | tee logs/quality_results_$$(date +%Y%m%d_%H%M%S).log
+	@echo "✓ Results validation complete"
+	@echo "Review: data_test/gold/quality_checks/results/"
+
+# Run all quality checks
+quality-all: quality-silver quality-cohort quality-results
+	@echo ""
+	@echo "════════════════════════════════════════"
+	@echo "✓ All quality checks complete!"
+	@echo "════════════════════════════════════════"
+
+# Alias for backward compatibility
+quality: quality-silver
+
+# ============================================================================
+# Pipeline with QC Gates
+# ============================================================================
+
+pipeline-with-qc: silver quality-silver geocode exposures cohort quality-cohort join rollup
+	@echo ""
+	@echo "════════════════════════════════════════"
+	@echo "✓ Pipeline complete (with QC gates)!"
+	@echo "════════════════════════════════════════"
+	@echo ""
+	@echo "Next: Review QC reports, then run ExWAS"
+	@echo "  cat data_test/gold/quality_checks/*/summary.csv"
+	@echo "  make slurm-exwas"
