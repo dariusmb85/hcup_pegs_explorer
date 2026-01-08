@@ -1,0 +1,6 @@
+library(targets)
+cat("=== Pipeline Status ===\n\n")
+cat("Outdated targets:\n")
+print(tar_outdated())
+cat("\nProgress:\n")
+print(tar_progress())
