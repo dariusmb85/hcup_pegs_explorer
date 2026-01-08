@@ -137,6 +137,50 @@ pipeline: silver geocode exposures cohort join rollup
 	@echo "  make exwas"
 
 # ============================================================================
+# Targets Pipeline
+# ============================================================================
+
+targets-init:
+	@echo "==> Installing targets packages..."
+	$(R) -e "pkgs <- c('targets', 'tarchetypes', 'crew', 'crew.cluster', 'visNetwork'); install.packages(pkgs[!pkgs %in% installed.packages()], repos='https://cloud.r-project.org')"
+	@echo "✓ targets installed"
+
+targets-view:
+	@echo "==> Opening pipeline visualization..."
+	$(R) view_pipeline.R
+
+targets-check:
+	@echo "==> Checking pipeline status..."
+	$(R) check_pipeline.R
+
+targets-run-local:
+	@echo "==> Running targets pipeline locally..."
+	@mkdir -p logs
+	export USE_HPC=FALSE && $(R) -e 'targets::tar_make()' 2>&1 | tee logs/targets_local_$$(date +%Y%m%d_%H%M%S).log
+	@echo "✓ Pipeline complete"
+
+targets-run-hpc:
+	@echo "==> Running targets pipeline with HPC..."
+	@mkdir -p logs
+	export USE_HPC=TRUE && $(R) -e 'targets::tar_make()' 2>&1 | tee logs/targets_hpc_$$(date +%Y%m%d_%H%M%S).log
+	@echo "✓ Pipeline complete"
+
+targets-clean:
+	@echo "==> Cleaning targets cache..."
+	$(R) -e 'targets::tar_destroy()'
+	@echo "✓ Cache cleared"
+
+targets-invalidate:
+	@echo "==> Invalidating target: $(TARGET)"
+	$(R) -e 'targets::tar_invalidate("$(TARGET)")'
+
+# Aliases
+pipeline-targets-local: targets-run-local
+pipeline-targets-hpc: targets-run-hpc
+
+.PHONY: targets-init targets-view targets-check targets-run-local targets-run-hpc targets-clean targets-invalidate
+
+# ============================================================================
 # SLURM Pipeline
 # ============================================================================
 
