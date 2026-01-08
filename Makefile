@@ -147,11 +147,11 @@ targets-init:
 
 targets-view:
 	@echo "==> Opening pipeline visualization..."
-	$(R) view_pipeline.R
+	$(R) r/view_pipeline.R
 
 targets-check:
 	@echo "==> Checking pipeline status..."
-	$(R) check_pipeline.R
+	$(R) r/check_pipeline.R
 
 targets-run-local:
 	@echo "==> Running targets pipeline locally..."
