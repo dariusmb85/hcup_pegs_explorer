@@ -66,7 +66,7 @@ list(
   tar_target(
     name = silver_layer,
     command = {
-      source("01_hcup_silver.R")
+      source(here::here("r", "01_hcup_silver.R"))
       check_file_exists("data_test/silver/visit")
     },
     format = "file",
@@ -77,7 +77,7 @@ list(
   tar_target(
     name = qc_silver,
     command = {
-      source("07_data_quality.R")
+      source(here::here("r", "07_data_quality.R"))
       check_file_exists("data_test/gold/quality_checks")
     },
     format = "file",
@@ -91,7 +91,7 @@ list(
   tar_target(
     name = geocoded_visits,
     command = {
-      source("015_geocode_enrich.R")
+      source(here::here("r", "015_geocode_enrich.R"))
       check_file_exists("data_test/silver/visit")
     },
     format = "file",
@@ -105,7 +105,7 @@ list(
   tar_target(
     name = exposures_downloaded,
     command = {
-      source("02_dataverse_exposures.R")
+      source(here::here("r", "02_dataverse_exposures.R"))
       check_file_exists("data_test/gold/exposures_monthly")
     },
     format = "file",
@@ -119,7 +119,7 @@ list(
   tar_target(
     name = person_month_cohort,
     command = {
-      source("04_person_monthV2.R")
+      source(here::here("r", "04_person_monthV2.R"))
       check_file_exists("data_test/gold/person_month")
     },
     format = "file",
@@ -133,7 +133,7 @@ list(
   tar_target(
     name = joined_data,
     command = {
-      source("05_join_exposures.R")
+      source(here::here("r", "05_join_exposures.R"))
       check_file_exists("data_test/gold/person_month_exposures")
     },
     format = "file",
@@ -147,7 +147,7 @@ list(
   tar_target(
     name = exposure_rollup_complete,
     command = {
-      source("03_exposure_rollup.R")
+      source(here::here("r", "03_exposure_rollup.R"))
       check_file_exists("data_test/gold/exposure_rollup")
     },
     format = "file",
@@ -207,7 +207,7 @@ list(
     deployment = if (USE_HPC) "worker" else "main"
   ),
 
-  # Male stratum
+  # Stage 7b: ExWAS Male
   tar_target(
     name = exwas_male,
     command = {
@@ -226,10 +226,10 @@ list(
         pivot_wider(names_from = exposure_id, values_from = value)
       wide <- pm %>% left_join(ex_wide, by = c("person_id", "ym"))
 
-      model_cfg <- read_yaml("../config/covariates.yaml")$exwas_models
+      model_cfg <- read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models <- Filter(function(x) grepl("_male$", x$id), model_cfg)
 
-      source("r/06_exwas_stratified.R")
+      source(here::here("r", "06_exwas_stratified.R"))
       results <- bind_rows(lapply(models, function(spec) {
         run_exwas_model(wide, unique(ex$exposure_id),
                        names(wide)[grepl("_flag$", names(wide))], spec)
@@ -250,7 +250,7 @@ list(
     deployment = if (USE_HPC) "worker" else "main"
   ),
 
-  # Female stratum
+  # Stage 7c: ExWAS Female
   tar_target(
     name = exwas_female,
     command = {
@@ -269,10 +269,10 @@ list(
         pivot_wider(names_from = exposure_id, values_from = value)
       wide <- pm %>% left_join(ex_wide, by = c("person_id", "ym"))
 
-      model_cfg <- read_yaml("../config/covariates.yaml")$exwas_models
+      model_cfg <- read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models <- Filter(function(x) grepl("_female$", x$id), model_cfg)
 
-      source("r/06_exwas_stratified.R")
+      source(here::here("r", "06_exwas_stratified.R"))
       results <- bind_rows(lapply(models, function(spec) {
         run_exwas_model(wide, unique(ex$exposure_id),
                        names(wide)[grepl("_flag$", names(wide))], spec)
