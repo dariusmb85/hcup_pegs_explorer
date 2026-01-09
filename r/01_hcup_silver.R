@@ -51,10 +51,25 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
   dx_cols <- names(df)[grepl(m$dx_all_regex, names(df))]
   e_cols  <- names(df)[grepl(m$ecause_regex, names(df))]
 
-  person_key <- choose_first(df, m$person_key_candidates)
-  if (is.null(person_key) || all(is.na(person_key))) {
-    person_key <- choose_first(df, m$visit_id) # fallback
-  }
+ person_key <- choose_first(df, m$person_key_candidates)
+
+if (is.null(person_key)) {
+  # No person linkage variable exists at all
+  person_key <- choose_first(df, m$visit_id)
+  cat("  ⚠️  No person linkage found, using visit_id as person_key\n")
+} else {
+  # Person linkage exists (e.g., VisitLink)
+  # For visits with NA linkage, use visit_id as fallback for those rows only
+  visit_id <- choose_first(df, m$visit_id)
+
+  n_linked_before <- sum(!is.na(person_key))
+  person_key <- ifelse(is.na(person_key), visit_id, person_key)
+  n_linked_after <- sum(!is.na(person_key))
+
+  cat("  ✓ Person linkage found:", n_linked_before, "/", length(person_key),
+      "(", round(100 * n_linked_before / length(person_key), 1), "%)\n")
+  cat("  ✓ After fallback:", n_linked_after, "/", length(person_key), "\n")
+}
 
   out <- tibble::tibble(
     visit_id          = choose_first(df, m$visit_id),
