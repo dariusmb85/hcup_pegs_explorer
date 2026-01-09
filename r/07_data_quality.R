@@ -354,5 +354,3 @@ cat("  - quality_check_summary.csv\n")
 cat("  - qa_results.rds (full results)\n")
 cat("  - qa_issues.rds (flagged records)\n")
 cat("  - Individual CSV files for each issue type\n")
-
-echo "✓ Created r/07_data_quality.R"
