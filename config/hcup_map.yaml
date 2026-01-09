@@ -7,7 +7,7 @@ mappings:
     admit_month: ["AMONTH", "admit_month"]
     discharge_month: ["DMONTH", "discharge_month"]
     visit_id: ["KEY", "VISITLINK", "key", "visit_id"]
-    person_key_candidates: ["PERSONKEY", "VISITLINK", "person_key"]
+    person_key_candidates: ["PERSONKEY", "VisitLink", "VISITLINK", "person_key"]
 
     dx_primary: ["I10_DX1", "DX1", "dx1"]
     dx_all_regex: "^(I10_)?DX[0-9]+$"
