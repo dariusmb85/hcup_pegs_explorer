@@ -56,7 +56,7 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
 if (is.null(person_key)) {
   # No person linkage variable exists at all
   person_key <- choose_first(df, m$visit_id)
-  cat("  ⚠️  No person linkage found, using visit_id as person_key\n")
+  cat(" [X] No person linkage found, using visit_id as person_key\n")
 } else {
   # Person linkage exists (e.g., VisitLink)
   # For visits with NA linkage, use visit_id as fallback for those rows only
