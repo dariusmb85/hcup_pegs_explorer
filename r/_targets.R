@@ -132,9 +132,9 @@ list(
     format = "file",
     deployment = "main"
   ),
-  
+
   # ============================================================================
-  # Stage 4: Download Exposures (INDEPENDENT - can run parallel with Stage 2)
+  # Stage 4: Download Exposures
   # ============================================================================
   tar_target(
     name = exposures_downloaded,
