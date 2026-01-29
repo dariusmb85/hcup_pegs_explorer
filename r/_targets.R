@@ -118,22 +118,9 @@ list(
     format = "file",
     deployment = "main"
   ),
-
+  
   # ============================================================================
-  # Stage 3: Download Exposures (INDEPENDENT - can run parallel with Stage 2)
-  # ============================================================================
-  tar_target(
-    name = exposures_downloaded,
-    command = {
-      source(here::here("r", "02_dataverse_exposures.R"))
-      check_file_exists("data_test/gold/exposures_monthly")
-    },
-    format = "file",
-    deployment = "main"
-  ),
-
-  # ============================================================================
-  # Stage 4: Person-Month Cohort (DEPENDS ON geocoded_visits)
+  # Stage 3: Person-Month Cohort (DEPENDS ON geocoded_visits)
   # ============================================================================
   tar_target(
     name = person_month_cohort,
@@ -145,6 +132,21 @@ list(
     format = "file",
     deployment = "main"
   ),
+  
+  # ============================================================================
+  # Stage 4: Download Exposures (INDEPENDENT - can run parallel with Stage 2)
+  # ============================================================================
+  tar_target(
+    name = exposures_downloaded,
+    command = {
+      person_month_cohort
+      source(here::here("r", "02_dataverse_exposures.R"))
+      check_file_exists("data_test/gold/exposures_monthly")
+    },
+    format = "file",
+    deployment = "main"
+  ),
+
 
   # ============================================================================
   # Stage 5: Join Exposures (DEPENDS ON person_month_cohort + exposures_downloaded)
