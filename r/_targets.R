@@ -17,33 +17,31 @@ if (USE_HPC) {
     name = "controller_normal",
     workers = 4,
     seconds_interval = 30,
-    options_cluster = crew.cluster::crew_options_slurm(
-      partition = "norm",  # ← YOUR SLURM PARTITION
-      cpus_per_task = 4,
-      memory_gigabytes_per_cpu = 16,
-      time_minutes = 240,
-      log_output = "logs/slurm_normal_%j.out",
-      log_error = "logs/slurm_normal_%j.err",
-      script_lines = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
+    slurm_log_output = "logs/slurm_normal_%j.out",
+    slurm_log_error = "logs/slurm_normal_%j.err",
+    slurm_partition = "norm",
+    slurm_cpus_per_task = 4,
+    slurm_memory_gigabytes_per_cpu = 16,
+    slurm_time_minutes = 240,
+    script_lines = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
     ),
-    tasks_max = Inf
+    verbose = FALSE
   )
 
-  # High-memory jobs (ExWAS analysis)
+  # High-memory controller for ExWAS
   controller_highmem <- crew.cluster::crew_controller_slurm(
     name = "controller_highmem",
-    workers = 3,  # 3 parallel ExWAS jobs (overall, male, female)
+    workers = 3,
     seconds_interval = 30,
-    options_cluster = crew.cluster::crew_options_slurm(
-      partition = "highmem",  # ← YOUR HIGHMEM PARTITION
-      cpus_per_task = 8,
-      memory_gigabytes_per_cpu = 32,
-      time_minutes = 720,  # 12 hours for ExWAS
-      log_output = "logs/slurm_highmem_%j.out",
-      log_error = "logs/slurm_highmem_%j.err",
-      script_lines = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
+    slurm_log_output = "logs/slurm_highmem_%j.out",
+    slurm_log_error = "logs/slurm_highmem_%j.err",
+    slurm_partition = "highmem",
+    slurm_cpus_per_task = 8,
+    slurm_memory_gigabytes_per_cpu = 32,
+    slurm_time_minutes = 720,
+    script_lines = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
     ),
-    tasks_max = Inf
+    verbose = FALSE
   )
 
   # Set controller group
