@@ -130,7 +130,9 @@ list(
       check_file_exists("data_test/gold/person_month")
     },
     format = "file",
-    deployment = "main"
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_normal")
+    )
   ),
 
   # ============================================================================
