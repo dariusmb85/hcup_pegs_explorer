@@ -3,7 +3,7 @@ library(targets)
 library(tarchetypes)
 
 # ==============================================================================
-# SLURM Controller Setup (Based on HCUP AP Template)
+# SLURM Controller Setup
 # ==============================================================================
 
 USE_HPC <- Sys.getenv("USE_HPC", "FALSE") == "TRUE"
@@ -87,7 +87,7 @@ check_file_exists <- function(path) {
 }
 
 # ==============================================================================
-# Pipeline Definition
+# Pipeline Definition with EXPLICIT DEPENDENCIES
 # ==============================================================================
 
 list(
@@ -101,35 +101,26 @@ list(
       source(here::here("r", "01_hcup_silver.R"))
       check_file_exists("data_test/silver/visit")
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 1b: Quality Checks on Silver
-  # ============================================================================
-  tar_target(
-    name = qc_silver,
-    command = {
-      source(here::here("r", "07_data_quality.R"))
-      check_file_exists("data_test/gold/quality_checks")
-    },
-    format = "file"
-  ),
-
-  # ============================================================================
-  # Stage 2: Geocoding (runs in parallel with Stage 3)
+  # Stage 2: Geocoding (DEPENDS ON silver_layer)
   # ============================================================================
   tar_target(
     name = geocoded_visits,
     command = {
+      silver_layer
       source(here::here("r", "015_geocode_enrich.R"))
       check_file_exists("data_test/silver/visit")
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 3: Download Exposures (runs in parallel with Stage 2)
+  # Stage 3: Download Exposures (INDEPENDENT - can run parallel with Stage 2)
   # ============================================================================
   tar_target(
     name = exposures_downloaded,
@@ -137,82 +128,85 @@ list(
       source(here::here("r", "02_dataverse_exposures.R"))
       check_file_exists("data_test/gold/exposures_monthly")
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 4: Person-Month Cohort (depends on geocoding)
+  # Stage 4: Person-Month Cohort (DEPENDS ON geocoded_visits)
   # ============================================================================
   tar_target(
     name = person_month_cohort,
     command = {
+      geocoded_visits
       source(here::here("r", "04_person_monthV2.R"))
       check_file_exists("data_test/gold/person_month")
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 5: Join Exposures (depends on cohort + exposures)
+  # Stage 5: Join Exposures (DEPENDS ON person_month_cohort + exposures_downloaded)
   # ============================================================================
   tar_target(
     name = joined_data,
     command = {
+      person_month_cohort
+      exposures_downloaded
       source(here::here("r", "05_join_exposures.R"))
       check_file_exists("data_test/gold/person_month_exposures")
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 6: Exposure Rollup
+  # Stage 6: Exposure Rollup (DEPENDS ON joined_data)
   # ============================================================================
   tar_target(
     name = exposure_rollup_complete,
     command = {
+      joined_data
       source(here::here("r", "03_exposure_rollup.R"))
       check_file_exists("data_test/gold/exposure_rollup")
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 7: ExWAS Analysis (3 parallel jobs - HIGHMEM)
+  # Stage 7a: ExWAS Overall (DEPENDS ON exposure_rollup_complete)
   # ============================================================================
-
-  # 7a: Overall (all person-months)
   tar_target(
     name = exwas_overall,
     command = {
+      exposure_rollup_complete
+
       library(arrow)
       library(dplyr)
       library(tidyr)
       library(broom)
       library(yaml)
 
-      # Load data
       pm <- arrow::open_dataset("data_test/gold/person_month") %>% dplyr::collect()
       ex <- arrow::open_dataset("data_test/gold/exposure_rollup") %>%
         dplyr::filter(metric == "mean") %>%
         dplyr::collect()
 
-      # Pivot wide
       ex_wide <- ex %>%
         dplyr::select(person_id, ym, exposure_id, value) %>%
         tidyr::pivot_wider(names_from = exposure_id, values_from = value)
 
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
-      # Get overall models from config
       model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models_overall <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_overall$", m$id) || m$strata == "all"
+        grepl("_overall$", m$id) || (is.null(m$strata) || m$strata == "all")
       })]
 
-      # Source ExWAS functions
       source(here::here("r", "06_ewas_enhanced.R"), local = TRUE)
 
-      # Run models
       exposure_cols <- unique(ex$exposure_id)
       outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
 
@@ -222,7 +216,6 @@ list(
         })
       )
 
-      # Multiple testing correction
       results <- results %>%
         dplyr::group_by(model_spec_id) %>%
         dplyr::mutate(
@@ -231,7 +224,6 @@ list(
         ) %>%
         dplyr::ungroup()
 
-      # Save
       arrow::write_parquet(results, "data_test/gold/exwas_overall.parquet")
       "data_test/gold/exwas_overall.parquet"
     },
@@ -241,17 +233,18 @@ list(
     )
   ),
 
-  # 7b: Male stratified
+  # 7b: ExWAS Male (DEPENDS ON exposure_rollup_complete)
   tar_target(
     name = exwas_male,
     command = {
+      exposure_rollup_complete
+
       library(arrow)
       library(dplyr)
       library(tidyr)
       library(broom)
       library(yaml)
 
-      # Load data - filter to males
       pm <- arrow::open_dataset("data_test/gold/person_month") %>%
         dplyr::collect() %>%
         dplyr::filter(female == 0)
@@ -271,10 +264,9 @@ list(
 
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
-      # Get male models
       model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models_male <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_male$", m$id) || m$strata == "male"
+        grepl("_male$", m$id) || (!is.null(m$strata) && m$strata == "male")
       })]
 
       if (length(models_male) == 0) {
@@ -310,17 +302,18 @@ list(
     )
   ),
 
-  # 7c: Female stratified
+  # 7c: ExWAS Female (DEPENDS ON exposure_rollup_complete)
   tar_target(
     name = exwas_female,
     command = {
+      exposure_rollup_complete  # ← EXPLICIT DEPENDENCY
+
       library(arrow)
       library(dplyr)
       library(tidyr)
       library(broom)
       library(yaml)
 
-      # Load data - filter to females
       pm <- arrow::open_dataset("data_test/gold/person_month") %>%
         dplyr::collect() %>%
         dplyr::filter(female == 1)
@@ -340,10 +333,9 @@ list(
 
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
-      # Get female models
       model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models_female <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_female$", m$id) || m$strata == "female"
+        grepl("_female$", m$id) || (!is.null(m$strata) && m$strata == "female")
       })]
 
       if (length(models_female) == 0) {
@@ -380,55 +372,68 @@ list(
   ),
 
   # ============================================================================
-  # Stage 8: Combine All Results
+  # Stage 8: Combine Results (DEPENDS ON all 3 ExWAS targets)
   # ============================================================================
   tar_target(
     name = exwas_combined,
     command = {
+      exwas_overall  # ← DEPENDENCY 1
+      exwas_male     # ← DEPENDENCY 2
+      exwas_female   # ← DEPENDENCY 3
+
       library(arrow)
       library(dplyr)
 
-      # Read all results
       overall <- if (file.exists(exwas_overall)) {
         arrow::read_parquet(exwas_overall)
       } else NULL
 
-      male <- if (file.exists(exwas_male)) {
+      male <- if (!is.null(exwas_male) && file.exists(exwas_male)) {
         arrow::read_parquet(exwas_male)
       } else NULL
 
-      female <- if (file.exists(exwas_female)) {
+      female <- if (!is.null(exwas_female) && file.exists(exwas_female)) {
         arrow::read_parquet(exwas_female)
       } else NULL
 
-      # Combine
-      all_results <- dplyr::bind_rows(
-        overall,
-        male,
-        female
-      ) %>%
+      all_results <- dplyr::bind_rows(overall, male, female) %>%
         dplyr::arrange(p_value)
 
-      # Save combined
       arrow::write_parquet(all_results, "data_test/gold/exwas_all_results.parquet")
 
       "data_test/gold/exwas_all_results.parquet"
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   ),
 
   # ============================================================================
-  # Stage 9: Final Report
+  # Stage 9: Quality Checks (DEPENDS ON silver_layer)
+  # ============================================================================
+  tar_target(
+    name = qc_silver,
+    command = {
+      silver_layer  # ← EXPLICIT DEPENDENCY
+      source(here::here("r", "07_data_quality.R"))
+      check_file_exists("data_test/gold/quality_checks")
+    },
+    format = "file",
+    deployment = "main"
+  ),
+
+  # ============================================================================
+  # Stage 10: Final Report (DEPENDS ON exwas_combined)
   # ============================================================================
   tar_target(
     name = final_report,
     command = {
+      exwas_combined  # ← EXPLICIT DEPENDENCY
+
       library(arrow)
       library(dplyr)
 
       results <- arrow::read_parquet(exwas_combined)
 
-      # Summary statistics
       summary <- list(
         total_tests = nrow(results),
         sig_p05 = sum(results$p_value < 0.05, na.rm = TRUE),
@@ -452,6 +457,7 @@ list(
 
       "data_test/gold/exwas_summary.rds"
     },
-    format = "file"
+    format = "file",
+    deployment = "main"
   )
 )
