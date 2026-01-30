@@ -416,6 +416,7 @@ list(
     name = qc_silver,
     command = {
       silver_layer  # ← EXPLICIT DEPENDENCY
+      person_month_cohort
       source(here::here("r", "07_data_quality.R"))
       check_file_exists("data_test/gold/quality_checks")
     },
