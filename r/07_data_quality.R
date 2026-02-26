@@ -195,7 +195,7 @@ cat("  Rule: Same person + same date + same diagnosis = likely duplicate\n")
 
 duplicates <- visits %>%
   group_by(person_id, admit_date, dx_primary) %>%
-  filter(n() > 1) %>%
+  filter(n() > 3) %>%
   arrange(person_id, admit_date) %>%
   select(person_id, visit_id, admit_date, discharge_date, dx_primary, db_type, facility_state)
 
@@ -354,3 +354,103 @@ cat("  - quality_check_summary.csv\n")
 cat("  - qa_results.rds (full results)\n")
 cat("  - qa_issues.rds (flagged records)\n")
 cat("  - Individual CSV files for each issue type\n")
+
+# ============================================================================
+# DATA CLEANING - Use QC Results to Filter
+# ============================================================================
+
+cat("\n=== APPLYING DATA CLEANING ===\n\n")
+
+cat("Starting visits:", format(nrow(visits), big.mark=","), "\n")
+
+# Build exclusion list from QC results
+exclude_visits <- c()
+
+# Add invalid date sequences
+if (n_invalid > 0) {
+  exclude_visits <- c(exclude_visits, issues$invalid_dates$visit_id)
+  cat("Excluding invalid dates:", format(n_invalid, big.mark=","), "\n")
+}
+
+# Add geographic issues
+if (n_geo_issues > 0) {
+  exclude_visits <- c(exclude_visits, issues$geo_issues$visit_id)
+  cat("Excluding geographic issues:", format(n_geo_issues, big.mark=","), "\n")
+}
+
+# Add duplicates (keep first, exclude rest)
+if (n_dups > 0) {
+  # From duplicates, keep only first occurrence per person-date-dx
+  dups_to_exclude <- issues$duplicates %>%
+    group_by(person_id, admit_date, dx_primary) %>%
+    arrange(visit_id) %>%
+    slice(-1) %>%  # Remove first, keep rest for exclusion
+    ungroup() %>%
+    pull(visit_id)
+
+  exclude_visits <- c(exclude_visits, dups_to_exclude)
+  cat("Excluding duplicate visits:", format(length(dups_to_exclude), big.mark=","), "\n")
+}
+
+# Add overlapping admissions
+if (n_overlaps > 0) {
+  # For overlaps, exclude the later admission
+  overlaps_to_exclude <- issues$overlapping_admissions %>%
+    pull(visit_id)
+
+  exclude_visits <- c(exclude_visits, overlaps_to_exclude)
+  cat("Excluding overlapping admissions:", format(n_overlaps, big.mark=","), "\n")
+}
+
+# Remove duplicates from exclusion list
+exclude_visits <- unique(exclude_visits)
+
+# Apply filter
+visits_clean <- visits %>%
+  filter(!visit_id %in% exclude_visits)
+
+n_excluded <- nrow(visits) - nrow(visits_clean)
+pct_excluded <- round(100 * n_excluded / nrow(visits), 2)
+
+cat("\n=== CLEANING SUMMARY ===\n")
+cat("Original visits:", format(nrow(visits), big.mark=","), "\n")
+cat("Cleaned visits:", format(nrow(visits_clean), big.mark=","), "\n")
+cat("Excluded:", format(n_excluded, big.mark=","),
+    "(", pct_excluded, "%)\n\n")
+
+# Write cleaned visits
+cat("Writing cleaned visits...\n")
+write_dataset(
+  visits_clean,
+  path(paths$silver, "visit_clean"),
+  partitioning = "year",
+  format = "parquet",
+  existing_data_behavior = "overwrite"
+)
+
+# Update person table to only include people with remaining visits
+cat("Updating person table...\n")
+persons_clean <- visits_clean %>%
+  group_by(person_id) %>%
+  summarise(
+    first_visit = min(admit_date, na.rm = TRUE),
+    last_visit = max(admit_date, na.rm = TRUE),
+    n_visits = n(),
+    age = first(na.omit(age)),
+    female = first(na.omit(female)),
+    race = first(na.omit(race)),
+    .groups = "drop"
+  )
+
+write_dataset(
+  persons_clean,
+  path(paths$silver, "person_clean"),
+  format = "parquet",
+  existing_data_behavior = "overwrite"
+)
+
+cat("✓ Cleaned data saved:\n")
+cat("  - ", path(paths$silver, "visit_clean"), "\n")
+cat("  - ", path(paths$silver, "person_clean"), "\n")
+
+cat("\n✓ Quality checks and cleaning complete\n")
