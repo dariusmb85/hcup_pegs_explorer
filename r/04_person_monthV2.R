@@ -50,7 +50,7 @@ main <- function() {
   message("\n=== Building person-month cohort ===\n")
 
   # Load visits
-  vis <- read_ds(path(paths$silver, "visit"))
+  vis <- read_ds(path(paths$silver, "visit_clean"))
 
   message("Creating phenotype flags...")
   vis_collected <- vis %>% collect()

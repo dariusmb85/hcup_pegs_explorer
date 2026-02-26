@@ -118,14 +118,28 @@ list(
     format = "file",
     deployment = "main"
   ),
-  
+
+ # ============================================================================
+  # Stage QA + CLEANING (creates visit_clean)
+  # ============================================================================
+  tar_target(
+    name = qc_and_clean,
+    command = {
+      geocoded_visits
+      source(here::here("r", "07_data_quality.R"))
+      check_file_exists("data_test/silver/visit_clean")  # ← Check for cleaned data
+    },
+    format = "file",
+    deployment = "main"
+  ),
+
   # ============================================================================
   # Stage 3: Person-Month Cohort (DEPENDS ON geocoded_visits)
   # ============================================================================
   tar_target(
     name = person_month_cohort,
     command = {
-      geocoded_visits
+      qc_and_clean
       source(here::here("r", "04_person_monthV2.R"))
       check_file_exists("data_test/gold/person_month")
     },
