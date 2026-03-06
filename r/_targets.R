@@ -2,6 +2,9 @@
 library(targets)
 library(tarchetypes)
 
+# Set CRAN mirror to fix package installation errors
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
 # ==============================================================================
 # SLURM Controller Setup
 # ==============================================================================
