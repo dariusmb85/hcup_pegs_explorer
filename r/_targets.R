@@ -26,7 +26,10 @@ if (USE_HPC) {
     slurm_cpus_per_task = 4,
     slurm_memory_gigabytes_per_cpu = 16,
     slurm_time_minutes = 240,
-    script_lines = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+    script_lines = c(
+      "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+      "Rscript -e \"options(repos = c(CRAN = 'https://cloud.r-project.org/'))\""
+    ),
     verbose = FALSE
   )
 
@@ -41,7 +44,10 @@ if (USE_HPC) {
     slurm_cpus_per_task = 8,
     slurm_memory_gigabytes_per_cpu = 32,
     slurm_time_minutes = 720,
-    script_lines = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+    script_lines = c(
+      "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+      "Rscript -e \"options(repos = c(CRAN = 'https://cloud.r-project.org/'))\""
+    ),
     verbose = FALSE
   )
 
