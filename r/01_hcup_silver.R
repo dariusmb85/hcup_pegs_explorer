@@ -14,7 +14,7 @@ bronze_files <- list.files(
 )
 
 # Load PheCode mapping
-phecode_map <- read_csv("../phecodes_cm_rolled.csv") %>%
+phecode_map <- read_csv("phecodes_cm_rolled.csv") %>%
   select(vocabulary_id, code, phecode, phecode_description) %>%
   rename(icd_code = code)
 
