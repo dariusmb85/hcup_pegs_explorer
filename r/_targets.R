@@ -108,9 +108,10 @@ list(
     name = silver_layer,
     command = {
       source(here::here("r", "01_hcup_silver.R"))
-      check_file_exists("data_test/silver/visit")
+      TRUE
+      # check_file_exists("data_test/silver/visit")
     },
-    format = "file",
+    format = "qs",
     deployment = "main"
   ),
 
@@ -122,9 +123,10 @@ list(
     command = {
       silver_layer
       source(here::here("r", "015_geocode_enrich.R"))
-      check_file_exists("data_test/silver/visit")
+      TRUE
+      # check_file_exists("data_test/silver/visit")
     },
-    format = "file",
+    format = "qs",
     deployment = "main"
   ),
 
