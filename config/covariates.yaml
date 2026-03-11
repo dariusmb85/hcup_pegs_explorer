@@ -69,61 +69,47 @@ features:
     description: "Minimum temperature (°C)"
 
 
-# Disease phenotype definitions (ICD-10-CM codes)
+# Disease phenotype definitions (Phecodes)
 phenotypes:
   asthma:
     label: "Asthma"
-    icd9_prefixes: ["493"]
-    icd10_prefixes: ["J45"]
-    description: "Asthma encounters"
+    phecodes: ["495"]
+    description: "Asthma"
 
   copd:
     label: "COPD"
-    icd9_prefixes: ["491", "492", "496"]
-    icd10_prefixes: ["J44"]
-    description: "Chronic obstructive pulmonary disease"
+    phecodes: ["496", "496.1", "496.2"]
+    description: "Chronic airway obstruction; Emphysema; Chronic bronchitis"
 
   respiratory_infection:
     label: "Respiratory Infection"
-    icd9_prefixes: ["460", "461", "462", "463", "464", "465", "466", "480", "481", "482", "483", "484", "485", "486",
-                    "487"]
-    icd10_prefixes: ["J00", "J01", "J02", "J03", "J04", "J05", "J06", "J09", "J10", "J11", "J12", "J13", "J14", "J15", "J16", "J17", "J18", "J20", "J21", "J22"]
-    description: "Acute upper and lower respiratory infections"
+    phecodes: ["464", "465", "480", "481", "483"]
+    description: "Acute sinusitis; Acute upper respiratory infections of multiple or unspecified sites; Pneumonia; Influenza; Acute bronchitis and bronchiolitis"
 
   cardiovascular:
     label: "Cardiovascular Disease"
-    icd9_prefixes: ["410", "411", "412", "413", "414"]
-    icd10_prefixes: ["I20", "I21", "I22", "I23", "I24", "I25"]
-    description: "Ischemic heart disease"
+    phecodes: ["411", "411.1", "411.2", "411.3", "411.4"]
+    description: "Ischemic Heart Disease; Unstable angina (intermediate coronary syndrome); Myocardial infarction; Angina pectoris; Coronary atherosclerosis"
 
   stroke:
     label: "Stroke"
-    icd9_prefixes: ["430", "431", "432", "433", "434", "435", "436", "437", "438"]
-    icd10_prefixes: ["I60", "I61", "I62", "I63", "I64"]
-    description: "Cerebrovascular accident"
+    phecodes: ["433", "433.1", "433.2", "433.3"]
+    description: "Cerebrovascular disease; Occlusion and stenosis of precerebral arteries; Occlusion of cerebral arteries; Cerebral ischemia"
 
   diabetes:
     label: "Diabetes"
-    icd9_prefixes: ["250"]
-    icd10_prefixes: ["E10", "E11", "E13"]
+    phecodes: ["250"]
     description: "Diabetes mellitus"
 
   pregnancy:
-    label: "Pregnancy/Delivery"
-    icd9_prefixes: ["630", "631", "632", "633", "634", "635", "636", "637", "638", "639", "640", "641", "642", "643",
-                    "644", "645", "646", "647", "648", "649", "650", "651", "652", "653", "654", "655", "656", "657",
-                    "658", "659", "660", "661", "662", "663", "664", "665", "666", "667", "668", "669", "670", "671",
-                    "672", "673", "674", "675", "676", "677", "678", "679", "V22", "V23", "V24", "V27", "V28"]
-    icd10_prefixes: ["O"]
-    description: "Pregnancy and childbirth complications"
+    label: "Pregnancy"
+    phecodes: ["634", "635", "640", "650"]
+    description: "Miscarriage; stillbirth; Hemorrhage during pregnancy; childbirth and postpartum; Complications mainly related to pregnancy; Normal delivery"
 
   mental_health:
     label: "Mental Health"
-    icd9_prefixes: ["290", "291", "292", "293", "294", "295", "296", "297", "298", "299", "300", "301", "302", "303",
-                    "304", "305", "306", "307", "308", "309", "310", "311", "312", "313", "314", "315", "316", "317",
-                    "318", "319"]
-    icd10_prefixes: ["F"]
-    description: "Mental and behavioral disorders"
+    phecodes: ["290", "295", "296", "300"]
+    description: "Delirium dementia and amnestic and other cognitive disorders; Schizophrenia and other psychotic disorders; Mood disorders; Anxiety disorders"
 
 # Rollup aggregations (for person-month exposures)
 rollup_metrics:

@@ -13,6 +13,11 @@ bronze_files <- list.files(
   full.names = TRUE
 )
 
+# Load PheCode mapping
+phecode_map <- read_csv("../phecodes_cm_rolled.csv") %>%
+  select(vocabulary_id, code, phecode, phecode_description) %>%
+  rename(icd_code = code)
+
 stopifnot(length(bronze_files) > 0)
 
 read_one <- function(f) {
@@ -148,6 +153,28 @@ all_visits <- purrr::map_dfr(
   }
 ) %>%
   dplyr::mutate(year = lubridate::year(admit_date))
+
+all_visits <- all_visits %>%
+  mutate(
+    dx_primary_phecode = case_when(
+      !is.na(dx_primary) ~ {
+        phecode_match <- phecode_map$phecode[phecode_map$icd_code == dx_primary][1]
+        if(length(phecode_match) > 0) phecode_match else NA_character_
+      },
+      TRUE ~ NA_character_
+    )
+  )
+
+# Add all secondary diagnosis PheCodes (dx1-dx30)
+dx_cols <- names(all_visits)[grepl("^dx[0-9]+$", names(all_visits))]
+for(col in dx_cols) {
+  new_col <- paste0(col, "_phecode")
+  all_visits[[new_col]] <- sapply(all_visits[[col]], function(icd) {
+    if(is.na(icd)) return(NA_character_)
+    phecode_match <- phecode_map$phecode[phecode_map$icd_code == icd][1]
+    if(length(phecode_match) > 0) phecode_match else NA_character_
+  })
+}
 
 persons <- all_visits %>%
   dplyr::distinct(person_id) %>%

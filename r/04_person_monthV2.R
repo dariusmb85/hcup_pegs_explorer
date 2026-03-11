@@ -6,43 +6,24 @@ source(here::here("r", "00_env.R"))
 # Load phenotype definitions
 pheno_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$phenotypes
 
-# Function to check if diagnosis matches phenotype
-dx_matches_phenotype <- function(dx_codes, icd9_prefixes = NULL, icd10_prefixes = NULL) {
-  if (is.null(dx_codes) || all(is.na(dx_codes))) return(FALSE)
-
-  # Check ICD-9 codes (numeric, 3-5 digits)
-  icd9_match <- FALSE
-  if (!is.null(icd9_prefixes) && length(icd9_prefixes) > 0) {
-    icd9_match <- any(sapply(icd9_prefixes, function(prefix) {
-      grepl(paste0("^", prefix), dx_codes)
-    }))
-  }
-
-  # Check ICD-10 codes (alphanumeric, starts with letter)
-  icd10_match <- FALSE
-  if (!is.null(icd10_prefixes) && length(icd10_prefixes) > 0) {
-    icd10_match <- any(sapply(icd10_prefixes, function(prefix) {
-      grepl(paste0("^", prefix), dx_codes)
-    }))
-  }
-
-  return(icd9_match || icd10_match)
+# Function to check if PheCodes match phenotype
+phecode_matches_phenotype <- function(phecode_values, target_phecodes) {
+  if (is.null(phecode_values) || all(is.na(phecode_values))) return(FALSE)
+  any(phecode_values %in% target_phecodes, na.rm = TRUE)
 }
 
 # Vectorized version
 create_phenotype_flags <- function(df, phenotypes) {
   for (pheno_name in names(phenotypes)) {
     pheno_def <- phenotypes[[pheno_name]]
-
     flag_col <- paste0(pheno_name, "_flag")
 
-    df[[flag_col]] <- sapply(df$dx_primary, function(dx) {
-      dx_matches_phenotype(dx, pheno_def$icd9_prefixes, pheno_def$icd10_prefixes)
+    df[[flag_col]] <- sapply(df$dx_primary_phecode, function(phecode) {
+      phecode_matches_phenotype(phecode, pheno_def$phecodes)
     })
 
     message(glue("Created {flag_col}: {sum(df[[flag_col]], na.rm=TRUE)} positive cases"))
   }
-
   return(df)
 }
 
