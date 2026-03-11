@@ -13,10 +13,47 @@ bronze_files <- list.files(
   full.names = TRUE
 )
 
-# Load PheCode mapping
-phecode_map <- read_csv("phecodes_cm_rolled.csv") %>%
-  select(vocabulary_id, code, phecode, phecode_description) %>%
-  rename(icd_code = code)
+# Load PheCode mapping and create lookup
+phecode_lookup <- setNames(phecode_map$phecode, phecode_map$code)
+
+# format_icd_for_phecode function
+format_icd_for_phecode <- function(code) {
+  if(is.na(code) || code == "") return(NA_character_)
+
+  # ICD-9 E-codes: decimal after 4th position (check BEFORE general letters)
+  if(grepl("^E[0-9]", code)) {
+    if(nchar(code) <= 4) return(code)
+    if(nchar(code) > 4) {
+      return(paste0(substr(code, 1, 4), ".", substr(code, 5, nchar(code))))
+    }
+  }
+
+  # ICD-9 V-codes: decimal after 3rd position
+  if(grepl("^V[0-9]", code)) {
+    if(nchar(code) <= 3) return(code)
+    if(nchar(code) > 3) {
+      return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
+    }
+  }
+
+  # ICD-10 detection: starts with letter (but not E or V followed by numbers)
+  if(grepl("^[A-Z]", code)) {
+    if(nchar(code) == 3) return(code)
+    if(nchar(code) > 3) {
+      return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
+    }
+  }
+
+  # ICD-9 numeric codes: decimal after 3rd position
+  if(grepl("^[0-9]+$", code)) {
+    if(nchar(code) == 3) return(code)
+    if(nchar(code) > 3) {
+      return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
+    }
+  }
+
+  return(code)
+}
 
 stopifnot(length(bronze_files) > 0)
 
@@ -156,13 +193,7 @@ all_visits <- purrr::map_dfr(
 
 all_visits <- all_visits %>%
   mutate(
-    dx_primary_phecode = case_when(
-      !is.na(dx_primary) ~ {
-        phecode_match <- phecode_map$phecode[phecode_map$icd_code == dx_primary][1]
-        if(length(phecode_match) > 0) phecode_match else NA_character_
-      },
-      TRUE ~ NA_character_
-    )
+    dx_primary_phecode = phecode_lookup[sapply(dx_primary, format_icd_for_phecode)]
   )
 
 # Add all secondary diagnosis PheCodes (dx1-dx30)

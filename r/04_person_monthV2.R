@@ -13,16 +13,28 @@ phecode_matches_phenotype <- function(phecode_values, target_phecodes) {
 }
 
 # Vectorized version
+# create_phenotype_flags <- function(df, phenotypes) {
+#  for (pheno_name in names(phenotypes)) {
+#    pheno_def <- phenotypes[[pheno_name]]
+#    flag_col <- paste0(pheno_name, "_flag")
+#
+#    df[[flag_col]] <- sapply(df$dx_primary_phecode, function(phecode) {
+#      phecode_matches_phenotype(phecode, pheno_def$phecodes)
+#    })
+#
+#    message(glue("Created {flag_col}: {sum(df[[flag_col]], na.rm=TRUE)} positive cases"))
+#  }
+#  return(df)
+#}
+
 create_phenotype_flags <- function(df, phenotypes) {
   for (pheno_name in names(phenotypes)) {
     pheno_def <- phenotypes[[pheno_name]]
     flag_col <- paste0(pheno_name, "_flag")
 
     df[[flag_col]] <- sapply(df$dx_primary_phecode, function(phecode) {
-      phecode_matches_phenotype(phecode, pheno_def$phecodes)
+      !is.na(phecode) && phecode %in% pheno_def$phecodes
     })
-
-    message(glue("Created {flag_col}: {sum(df[[flag_col]], na.rm=TRUE)} positive cases"))
   }
   return(df)
 }
