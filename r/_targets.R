@@ -80,7 +80,9 @@ tar_option_set(
     crew = tar_resources_crew(
       controller = "controller_normal"  # Default controller
     )
-  )
+  ),
+  debug = "logs/targets_debug.txt",
+  workspaces = "logs/targets_workspaces/"
 )
 
 # ==============================================================================
