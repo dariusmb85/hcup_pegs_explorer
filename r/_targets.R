@@ -107,8 +107,9 @@ list(
       check_file_exists("data_test/silver/visit")
     },
     format = "file",
-    resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_normal")
+    deployment = "main"
+    #resources = tar_resources(
+    #  crew = tar_resources_crew(controller = "controller_normal")
     )
   ),
 
@@ -123,8 +124,9 @@ list(
       check_file_exists("data_test/silver/visit")
     },
     format = "file",
-    resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_normal")
+    deployment = "main"
+    #resources = tar_resources(
+    #  crew = tar_resources_crew(controller = "controller_normal")
     )
   ),
 
