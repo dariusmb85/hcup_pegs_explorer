@@ -22,13 +22,13 @@ if (USE_HPC) {
     seconds_interval = 30,
     slurm_log_output = "logs/slurm_normal_%j.out",
     slurm_log_error = "logs/slurm_normal_%j.err",
-    slurm_partition = "norm",
+    slurm_partition = "highmem",  # Changed: Use highmem as default
     slurm_cpus_per_task = 4,
-    slurm_memory_gigabytes_per_cpu = 16,
+    slurm_memory_per_cpu = "12g",  # Changed: Use proper memory specification
     slurm_time_minutes = 240,
     script_lines = c(
       "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
-      "Rscript -e \"options(repos = c(CRAN = 'https://cloud.r-project.org/'))\""
+      "options(repos = c(CRAN = 'https://cloud.r-project.org/'))"  # Simplified
     ),
     verbose = FALSE
   )
@@ -41,12 +41,12 @@ if (USE_HPC) {
     slurm_log_output = "logs/slurm_highmem_%j.out",
     slurm_log_error = "logs/slurm_highmem_%j.err",
     slurm_partition = "highmem",
-    slurm_cpus_per_task = 8,
-    slurm_memory_gigabytes_per_cpu = 32,
+    slurm_cpus_per_task = 10,  # Changed: Even number, follows 12GB/CPU rule
+    slurm_memory_per_cpu = "12g",  # Changed: Use default highmem ratio
     slurm_time_minutes = 720,
     script_lines = c(
       "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
-      "Rscript -e \"options(repos = c(CRAN = 'https://cloud.r-project.org/'))\""
+      "options(repos = c(CRAN = 'https://cloud.r-project.org/'))"
     ),
     verbose = FALSE
   )
