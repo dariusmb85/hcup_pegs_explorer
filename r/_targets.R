@@ -27,7 +27,7 @@ if (USE_HPC) {
     slurm_memory_gigabytes_per_cpu = 12,  # Changed: Use proper memory specification
     slurm_time_minutes = 240,
     script_lines = c(
-      "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+      "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
       #"options(repos = c(CRAN = 'https://cloud.r-project.org/'))"  # Simplified
     ),
     verbose = FALSE
@@ -45,7 +45,7 @@ if (USE_HPC) {
     slurm_memory_gigabytes_per_cpu = 12,  # Changed: Use default highmem ratio
     slurm_time_minutes = 720,
     script_lines = c(
-      "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+      "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
       #"options(repos = c(CRAN = 'https://cloud.r-project.org/'))"
     ),
     verbose = FALSE
