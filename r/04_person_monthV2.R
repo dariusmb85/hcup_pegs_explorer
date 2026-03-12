@@ -45,6 +45,15 @@ main <- function() {
   # Load visits
   vis <- read_ds(path(paths$silver, "visit_clean"))
 
+  # Load visits
+  vis_collected <- vis %>% collect()
+
+  # DEBUG: Check what columns exist
+  cat("Available columns:\n")
+  print(names(vis_collected))
+  cat("Columns with 'phecode':\n")
+  print(names(vis_collected)[grepl("phecode", names(vis_collected), ignore.case = TRUE)])
+
   message("Creating phenotype flags...")
   vis_collected <- vis %>% collect()
 
