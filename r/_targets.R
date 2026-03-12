@@ -110,11 +110,12 @@ list(
     name = silver_layer,
     command = {
       source(here::here("r", "01_hcup_silver.R"))
-      TRUE
-      # check_file_exists("data_test/silver/visit")
+      check_file_exists("data_test/silver/visit")
     },
-    format = "qs",
-    deployment = "main"
+    format = "file",
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_normal")
+    )
   ),
 
   # ============================================================================
@@ -125,11 +126,12 @@ list(
     command = {
       silver_layer
       source(here::here("r", "015_geocode_enrich.R"))
-      TRUE
-      # check_file_exists("data_test/silver/visit")
+      check_file_exists("data_test/silver/visit")
     },
-    format = "qs",
-    deployment = "main"
+    format = "file",
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_normal")
+    )
   ),
 
  # ============================================================================
@@ -157,7 +159,9 @@ list(
       check_file_exists("data_test/gold/person_month")
     },
     format = "file",
-    deployment = "main"
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_normal")
+    )
   ),
 
   # ============================================================================
