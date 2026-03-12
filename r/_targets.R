@@ -110,7 +110,7 @@ list(
     deployment = "main"
     #resources = tar_resources(
     #  crew = tar_resources_crew(controller = "controller_normal")
-    )
+    #)
   ),
 
   # ============================================================================
@@ -127,7 +127,7 @@ list(
     deployment = "main"
     #resources = tar_resources(
     #  crew = tar_resources_crew(controller = "controller_normal")
-    )
+    #)
   ),
 
  # ============================================================================
