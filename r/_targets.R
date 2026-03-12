@@ -28,7 +28,7 @@ if (USE_HPC) {
     slurm_time_minutes = 240,
     script_lines = c(
       "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
-      "options(repos = c(CRAN = 'https://cloud.r-project.org/'))"  # Simplified
+      #"options(repos = c(CRAN = 'https://cloud.r-project.org/'))"  # Simplified
     ),
     verbose = FALSE
   )
@@ -46,7 +46,7 @@ if (USE_HPC) {
     slurm_time_minutes = 720,
     script_lines = c(
       "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
-      "options(repos = c(CRAN = 'https://cloud.r-project.org/'))"
+      #"options(repos = c(CRAN = 'https://cloud.r-project.org/'))"
     ),
     verbose = FALSE
   )
