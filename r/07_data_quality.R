@@ -24,7 +24,7 @@ visits <- open_dataset(path(paths$silver, "visit")) %>% collect()
 # person_months <- open_dataset(path(paths$gold, "person_month")) %>% collect()
 
 cat("  Visits:", format(nrow(visits), big.mark=","), "\n")
-cat("  Person-months:", format(nrow(person_months), big.mark=","), "\n\n")
+#cat("  Person-months:", format(nrow(person_months), big.mark=","), "\n\n")
 
 # Initialize results list
 qa_results <- list()
