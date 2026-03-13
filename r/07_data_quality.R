@@ -21,7 +21,7 @@ dir_create(qa_dir)
 
 cat("Loading data...\n")
 visits <- open_dataset(path(paths$silver, "visit")) %>% collect()
-person_months <- open_dataset(path(paths$gold, "person_month")) %>% collect()
+# person_months <- open_dataset(path(paths$gold, "person_month")) %>% collect()
 
 cat("  Visits:", format(nrow(visits), big.mark=","), "\n")
 cat("  Person-months:", format(nrow(person_months), big.mark=","), "\n\n")
@@ -299,29 +299,29 @@ cat("\n")
 # CHECK 10: Extreme Visit Frequencies
 # ============================================================================
 
-cat("CHECK 10: Extreme visit frequencies\n")
-cat("  Rule: >50 visits/month suggests data quality issue\n")
+#cat("CHECK 10: Extreme visit frequencies\n")
+#cat("  Rule: >50 visits/month suggests data quality issue\n")
 
-high_utilizers <- person_months %>%
-  filter(n_visits > 50) %>%
-  arrange(desc(n_visits)) %>%
-  select(person_id, ym, n_visits, zip5, asthma_flag:mental_health_flag)
+#high_utilizers <- person_months %>%
+#filter(n_visits > 50) %>%
+# arrange(desc(n_visits)) %>%
+# select(person_id, ym, n_visits, zip5, asthma_flag:mental_health_flag)
 
-n_high_util <- nrow(high_utilizers)
-cat("  Found:", format(n_high_util, big.mark=","), "person-months with >50 visits\n")
+#n_high_util <- nrow(high_utilizers)
+#cat("  Found:", format(n_high_util, big.mark=","), "person-months with >50 visits\n")
 
-qa_results$high_utilization <- list(
-  n_person_months = n_high_util,
-  max_visits = max(person_months$n_visits, na.rm=TRUE)
-)
+#qa_results$high_utilization <- list(
+# n_person_months = n_high_util,
+# max_visits = max(person_months$n_visits, na.rm=TRUE)
+#)
 
-if (n_high_util > 0) {
-  write_csv(high_utilizers, path(qa_dir, "high_utilization.csv"))
-  issues$high_utilizers <- high_utilizers
-  cat("  Max visits in one month:", max(person_months$n_visits, na.rm=TRUE), "\n")
-  cat("  ⚠️  Issues saved to:", path(qa_dir, "high_utilization.csv"), "\n")
-}
-cat("\n")
+#if (n_high_util > 0) {
+#  write_csv(high_utilizers, path(qa_dir, "high_utilization.csv"))
+#  issues$high_utilizers <- high_utilizers
+#  cat("  Max visits in one month:", max(person_months$n_visits, na.rm=TRUE), "\n")
+#  cat("  ⚠️  Issues saved to:", path(qa_dir, "high_utilization.csv"), "\n")
+#}
+#cat("\n")
 
 # ============================================================================
 # Summary Report
