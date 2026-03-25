@@ -222,6 +222,6 @@ write_parquet_ds(persons, fs::path(paths$silver, "person"))
 arrow::write_dataset(
   all_visits,
   fs::path(paths$silver, "visit"),
-  partitioning = c("year"),
+  partitioning = c("facility_state", "year"),
   existing_data_behavior = "overwrite"
 )

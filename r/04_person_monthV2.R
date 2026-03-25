@@ -74,6 +74,7 @@ pm <- vis_flagged %>%
     tract_geoid,
     n_visits = 1L,
     db_type,
+    facility_state,
     age,       # ADD
     female,    # ADD
     race,      # ADD
@@ -137,7 +138,7 @@ pm <- vis_flagged %>%
   write_parquet_ds(
     pm,
     path(paths$gold, "person_month"),
-    partitioning = c("year")
+    partitioning = c("facility_state", "year")
   )
 
   message("✓ Complete\n")
