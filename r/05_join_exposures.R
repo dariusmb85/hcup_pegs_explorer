@@ -90,7 +90,7 @@ output_path <- path(paths$gold, "person_month_exposures")
 write_parquet_ds(
   person_months_exp,
   output_path,
-  partitioning = c("year")
+  partitioning = c("facility_state", "year")
 )
 
 cat("\n✓ Complete\n")

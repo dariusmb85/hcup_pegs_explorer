@@ -96,7 +96,7 @@ output_path <- path(paths$gold, "exposure_rollup")
 write_parquet_ds(
   exposure_rollup,
   output_path,
-  partitioning = c("exposure_id", "metric")
+  partitioning = c("facility_state", "exposure_id", "metric")
 )
 
 cat("\n✓ Complete\n")
