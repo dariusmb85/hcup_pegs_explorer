@@ -156,7 +156,7 @@ list(
     },
     format = "file",
     resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_normal")
+      crew = tar_resources_crew(controller = "controller_highmem")
     )
   ),
 
