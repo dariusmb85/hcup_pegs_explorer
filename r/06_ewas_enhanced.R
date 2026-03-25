@@ -220,7 +220,7 @@ main <- function() {
   write_parquet_ds(
     all_results,
     path(paths$gold, "exwas_result_stratified"),
-    partitioning = c("strata", "model_spec_id")
+    partitioning = c("facility_state", "strata", "model_spec_id")
   )
 
   cat("\n✓ Sex-Stratified ExWAS complete\n")
