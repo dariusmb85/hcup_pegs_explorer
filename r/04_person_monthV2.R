@@ -88,6 +88,7 @@ pm <- vis_flagged %>%
 
     # Aggregate db_type
     db_type = paste(unique(na.omit(db_type)), collapse=","),
+    facility_state = facility_state,
 
     # Aggregate demographics (take first non-missing value)
     age = first(na.omit(age)),
