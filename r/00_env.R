@@ -45,7 +45,7 @@ invisible(
 # LOAD the packages
 invisible(lapply(pkgs, library, character.only = TRUE))
 
-root <- Sys.getenv("PARQUET_ROOT", unset = here("data"))
+root <- Sys.getenv("PARQUET_ROOT", unset = here("data_test"))
 
 paths <- list(
   bronze   = path(root, "bronze"),
