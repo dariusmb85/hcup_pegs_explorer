@@ -437,22 +437,7 @@ list(
   ),
 
   # ============================================================================
-  # Stage 9: Quality Checks (DEPENDS ON silver_layer)
-  # ============================================================================
-  tar_target(
-    name = qc_silver,
-    command = {
-      silver_layer  # ← EXPLICIT DEPENDENCY
-      person_month_cohort
-      source(here::here("r", "07_data_quality.R"))
-      check_file_exists("data_test/gold/quality_checks")
-    },
-    format = "file",
-    deployment = "main"
-  ),
-
-  # ============================================================================
-  # Stage 10: Final Report (DEPENDS ON exwas_combined)
+  # Stage 09: Final Report (DEPENDS ON exwas_combined)
   # ============================================================================
   tar_target(
     name = final_report,
