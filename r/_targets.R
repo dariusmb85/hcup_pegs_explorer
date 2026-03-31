@@ -234,7 +234,7 @@ list(
   ),
 
   # ============================================================================
-  # Stage 7c: ExWAS Female (DEPENDS ON exposure_rollup_complete)
+  # Stage 7c: ExWAS Female (DEPENDS On exposure_rollup_complete)
   # ============================================================================
   tar_target(
     name = exwas_female,
