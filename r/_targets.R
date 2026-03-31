@@ -211,222 +211,41 @@ list(
     name = exwas_overall,
     command = {
       exposure_rollup_complete
-
-      library(arrow)
-      library(dplyr)
-      library(tidyr)
-      library(broom)
-      library(yaml)
-
-      pm <- arrow::open_dataset("data_test/gold/person_month") %>% dplyr::collect()
-      ex <- arrow::open_dataset("data_test/gold/exposure_rollup") %>%
-        dplyr::filter(metric == "mean") %>%
-        dplyr::collect()
-
-      ex_wide <- ex %>%
-        dplyr::select(person_id, ym, exposure_id, value) %>%
-        tidyr::pivot_wider(names_from = exposure_id, values_from = value)
-
-      wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
-
-      exposure_cols <- unique(ex$exposure_id)
-      for(col in exposure_cols) {
-        if(col %in% names(wide)) {
-          wide[[col]] <- sapply(wide[[col]], function(x) {
-            if(is.null(x) || length(x) == 0) return(NA_real_)
-            as.numeric(x)[1]
-          })
-        }
-      }
-
-      model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
-      models_overall <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_overall$", m$id) || (is.null(m$strata) || m$strata == "all")
-      })]
-
-      source(here::here("r", "06_ewas_enhanced.R"), local = TRUE)
-
-      # Note: exposure_cols already defined above
-      outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
-
-      results <- dplyr::bind_rows(
-        lapply(models_overall, function(spec) {
-          run_exwas_model(wide, exposure_cols, outcome_cols, spec)
-        })
-      )
-
-      results <- results %>%
-        dplyr::group_by(model_spec_id) %>%
-        dplyr::mutate(
-          p.adj.fdr = p.adjust(p_value, method = "fdr"),
-          p.adj.bonferroni = p.adjust(p_value, method = "bonferroni")
-        ) %>%
-        dplyr::ungroup()
-
-      arrow::write_parquet(results, "data_test/gold/exwas_overall.parquet")
-      "data_test/gold/exwas_overall.parquet"
+      system("Rscript r/06_ewas_stratified.R all")
+      "data_test/gold/exwas_all.parquet"
     },
     format = "file",
     resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem")
-    )
+      crew = tar_resources_crew(controller = "controller_highmem"))
   ),
-
-  # 7b: ExWAS Male (DEPENDS ON exposure_rollup_complete)
+  # ============================================================================
+  # Stage 7b: ExWAS Male (DEPENDS ON exposure_rollup_complete)
+  # ============================================================================
   tar_target(
     name = exwas_male,
     command = {
       exposure_rollup_complete
-
-      library(arrow)
-      library(dplyr)
-      library(tidyr)
-      library(broom)
-      library(yaml)
-
-      pm <- arrow::open_dataset("data_test/gold/person_month") %>%
-        dplyr::collect() %>%
-        dplyr::filter(female == 0)
-
-      if (nrow(pm) == 0) {
-        warning("No male person-months found")
-        return(NULL)
-      }
-
-      ex <- arrow::open_dataset("data_test/gold/exposure_rollup") %>%
-        dplyr::filter(metric == "mean") %>%
-        dplyr::collect()
-
-      ex_wide <- ex %>%
-        dplyr::select(person_id, ym, exposure_id, value) %>%
-        tidyr::pivot_wider(names_from = exposure_id, values_from = value)
-
-      wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
-
-      exposure_cols <- unique(ex$exposure_id)
-      for(col in exposure_cols) {
-        if(col %in% names(wide)) {
-          wide[[col]] <- sapply(wide[[col]], function(x) {
-            if(is.null(x) || length(x) == 0) return(NA_real_)
-            as.numeric(x)[1]
-          })
-        }
-      }
-
-      model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
-      models_male <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_male$", m$id) || (!is.null(m$strata) && m$strata == "male")
-      })]
-
-      if (length(models_male) == 0) {
-        warning("No male models defined in config")
-        return(NULL)
-      }
-
-      source(here::here("r", "06_ewas_enhanced.R"), local = TRUE)
-
-      outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
-
-      results <- dplyr::bind_rows(
-        lapply(models_male, function(spec) {
-          run_exwas_model(wide, exposure_cols, outcome_cols, spec)
-        })
-      )
-
-      results <- results %>%
-        dplyr::group_by(model_spec_id) %>%
-        dplyr::mutate(
-          p.adj.fdr = p.adjust(p_value, method = "fdr"),
-          p.adj.bonferroni = p.adjust(p_value, method = "bonferroni")
-        ) %>%
-        dplyr::ungroup()
-
-      arrow::write_parquet(results, "data_test/gold/exwas_male.parquet")
+      system("Rscript r/06_ewas_stratified.R male")
       "data_test/gold/exwas_male.parquet"
     },
     format = "file",
     resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem")
-    )
+      crew = tar_resources_crew(controller = "controller_highmem"))
   ),
 
-  # 7c: ExWAS Female (DEPENDS ON exposure_rollup_complete)
+  # ============================================================================
+  # Stage 7c: ExWAS Female (DEPENDS ON exposure_rollup_complete)
+  # ============================================================================
   tar_target(
     name = exwas_female,
     command = {
-      exposure_rollup_complete  # ← EXPLICIT DEPENDENCY
-
-      library(arrow)
-      library(dplyr)
-      library(tidyr)
-      library(broom)
-      library(yaml)
-
-      pm <- arrow::open_dataset("data_test/gold/person_month") %>%
-        dplyr::collect() %>%
-        dplyr::filter(female == 1)
-
-      if (nrow(pm) == 0) {
-        warning("No female person-months found")
-        return(NULL)
-      }
-
-      ex <- arrow::open_dataset("data_test/gold/exposure_rollup") %>%
-        dplyr::filter(metric == "mean") %>%
-        dplyr::collect()
-
-      ex_wide <- ex %>%
-        dplyr::select(person_id, ym, exposure_id, value) %>%
-        tidyr::pivot_wider(names_from = exposure_id, values_from = value)
-
-      wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
-
-      exposure_cols <- unique(ex$exposure_id)
-      for(col in exposure_cols) {
-         if(col %in% names(wide)) {
-           wide[[col]] <- sapply(wide[[col]], function(x) {
-              if(is.null(x) || length(x) == 0) return(NA_real_)
-             as.numeric(x)[1]
-           })
-         }
-      }
-
-      model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
-      models_female <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_female$", m$id) || (!is.null(m$strata) && m$strata == "female")
-      })]
-
-      if (length(models_female) == 0) {
-        warning("No female models defined in config")
-        return(NULL)
-      }
-
-      source(here::here("r", "06_ewas_enhanced.R"), local = TRUE)
-
-
-      outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
-
-      results <- dplyr::bind_rows(
-        lapply(models_female, function(spec) {
-          run_exwas_model(wide, exposure_cols, outcome_cols, spec)
-        })
-      )
-
-      results <- results %>%
-        dplyr::group_by(model_spec_id) %>%
-        dplyr::mutate(
-          p.adj.fdr = p.adjust(p_value, method = "fdr"),
-          p.adj.bonferroni = p.adjust(p_value, method = "bonferroni")
-        ) %>%
-        dplyr::ungroup()
-
-      arrow::write_parquet(results, "data_test/gold/exwas_female.parquet")
+      exposure_rollup_complete
+      system("Rscript r/06_ewas_stratified.R female")
       "data_test/gold/exwas_female.parquet"
     },
     format = "file",
     resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem")
-    )
+      crew = tar_resources_crew(controller = "controller_highmem"))
   ),
 
   # ============================================================================
