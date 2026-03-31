@@ -52,7 +52,7 @@ cat("  Available exposure columns:", paste(available_vars, collapse=", "), "\n")
 
 # Pivot to long format
 exposure_long <- pm_exp %>%
-  select(person_id, ym, year, month, all_of(available_vars)) %>%
+  select(person_id, ym, year, month, facility_state, all_of(available_vars)) %>%
   pivot_longer(
     cols = all_of(available_vars),
     names_to = "variable",
@@ -71,7 +71,7 @@ cat("\nCreating exposure rollup...\n")
 
 exposure_rollup <- exposure_long %>%
   mutate(metric = "mean") %>%  # Monthly data is already aggregated as mean
-  select(person_id, ym, exposure_id, metric, value)
+  select(person_id, ym, exposure_id, metric, value, facility_state)
 
 cat("  Rollup rows:", format(nrow(exposure_rollup), big.mark=","), "\n")
 
