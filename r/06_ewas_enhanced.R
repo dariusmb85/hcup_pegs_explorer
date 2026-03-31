@@ -9,7 +9,10 @@ library(tidyr)
 library(broom)
 library(yaml)
 
-cat("=== Running Sex-Stratified ExWAS ===\n\n")
+args <- commandArgs(trailingOnly = TRUE)
+target_strata <- if(length(args) > 0) args[1] else "all"
+
+cat("=== Running ExWAS for strata:", target_strata, "===\n\n")
 
 # Load configurations
 pheno_cfg <- read_yaml(here::here("config", "covariates.yaml"))$phenotypes
@@ -133,7 +136,7 @@ run_exwas_model <- function(wide_df, exposure_cols, outcome_cols, model_spec) {
   return(results_df)
 }
 
-main <- function() {
+main <- function(strata_filter) {
 
   # Load person-month cohort
   cat("\nLoading person-month cohort...\n")
@@ -143,6 +146,8 @@ main <- function() {
   cat("  Person-months:", format(nrow(pm), big.mark=","), "\n")
   cat("  Males:", format(sum(pm$female == 0, na.rm=TRUE), big.mark=","), "\n")
   cat("  Females:", format(sum(pm$female == 1, na.rm=TRUE), big.mark=","), "\n")
+
+  target_strata <- strata_filter
 
   # Load exposure rollup
   cat("Loading exposure rollup...\n")
@@ -162,8 +167,17 @@ main <- function() {
   wide <- pm %>%
     left_join(ex_wide, by = c("person_id", "ym"))
 
-  # Identify columns
   exposure_cols <- unique(ex$exposure_id)
+  for(col in exposure_cols) {
+    if(col %in% names(wide)) {
+      wide[[col]] <- sapply(wide[[col]], function(x) {
+        if(is.null(x) || length(x) == 0) return(NA_real_)
+        as.numeric(x)[1]
+      })
+    }
+  }
+
+  # Identify columns
   outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
 
   cat("\nExposures:", length(exposure_cols), "\n")
@@ -173,8 +187,25 @@ main <- function() {
     stop("No exposures or outcomes found")
   }
 
-  # Run ExWAS for each model
-  all_results <- bind_rows(lapply(model_cfg, function(model_spec) {
+  if(target_strata == "all") {
+    models_to_run <- model_cfg[sapply(model_cfg, function(m) {
+      grepl("_overall$", m$id) || (is.null(m$strata) || m$strata == "all")
+    })]
+  } else if(target_strata == "male") {
+    models_to_run <- model_cfg[sapply(model_cfg, function(m) {
+      !is.null(m$strata) && m$strata == "male"
+    })]
+  } else if(target_strata == "female") {
+    models_to_run <- model_cfg[sapply(model_cfg, function(m) {
+      !is.null(m$strata) && m$strata == "female"
+    })]
+  } else {
+    models_to_run <- model_cfg  # fallback to all models
+  }
+
+  cat("Running", length(models_to_run), "model(s) for strata:", target_strata, "\n")
+
+  all_results <- bind_rows(lapply(models_to_run, function(model_spec) {
     run_exwas_model(wide, exposure_cols, outcome_cols, model_spec)
   }))
 
@@ -223,12 +254,13 @@ main <- function() {
     partitioning = c("facility_state", "strata", "model_spec_id")
   )
 
-  cat("\n✓ Sex-Stratified ExWAS complete\n")
+  cat("\n✓ ExWAS for strata:", target_strata, "complete\n")
+
 
   invisible(all_results)
 }
 
 # Run
 if (!interactive()) {
-  main()
+  main(target_strata)
 }
