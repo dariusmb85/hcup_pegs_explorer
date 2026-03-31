@@ -58,38 +58,17 @@ try({
 
   }
 }
-> cat("Outcome values:", table(wide[[outcome]], useNA="always"), "\n")
-Outcome values: 507500 4808 0
-> # In your ExWAS target, add this debug before model fitting:
-> cat("Data columns:", paste(names(wide), collapse=", "), "\n")
-Data columns: person_id, ym, zip5, tract_geoid, n_visits, db_type, age, female, race, asthma_flag, copd_flag, respiratory_infection_flag, cardiovascular_flag, stroke_flag, diabetes_flag, pregnancy_flag, mental_health_flag, month, season, facility_state, year, hms_smoke_heavy, hms_smoke_medium, pm25_black_carbon, hms_smoke_light, pm25_dust, temp_maximum, temp_minimum
-> cat("Exposure columns found:", paste(exposure_cols, collapse=", "), "\n")
-Exposure columns found: hms_smoke_heavy, hms_smoke_medium, pm25_black_carbon, hms_smoke_light, pm25_dust, temp_maximum, temp_minimum
-> cat("Outcome columns found:", paste(outcome_cols, collapse=", "), "\n")
-Outcome columns found: asthma_flag, copd_flag, respiratory_infection_flag, cardiovascular_flag, stroke_flag, diabetes_flag, pregnancy_flag, mental_health_flag
-> cat("Data rows:", nrow(wide), "\n")
-Data rows: 512308
->
-> # Check for specific columns the formula needs
-> cat("Has 'year' column:", "year" %in% names(wide), "\n")
-Has 'year' column: TRUE
-> cat("Has 'season' column:", "season" %in% names(wide), "\n")
-Has 'season' column: TRUE
->
-> # Try fitting one model manually to see the error:
-> outcome <- outcome_cols[1]  # e.g., "asthma_flag"
-> exposure <- exposure_cols[1]  # e.g., "pm25_black_carbon"
+# Convert list columns to proper numeric, handling NULLs
+exposure_cols_clean <- exposure_cols
 
-> cat("Outcome values:", table(wide[[outcome]], useNA="always"), "\n")
-Outcome values: 507500 4808 0
+for(col in exposure_cols_clean) {
+  wide[[col]] <- sapply(wide[[col]], function(x) {
+    if(is.null(x) || length(x) == 0) return(NA_real_)
+    as.numeric(x)[1]  # Take first value if somehow a vector
+  })
+}
 
-> # Try the actual formula
-> formula_str <- "{outcome} ~ scale({exposure})"
-> formula_filled <- glue::glue(formula_str, outcome=outcome, exposure=exposure)
-> cat("Formula:", formula_filled, "\n")
-Formula: asthma_flag ~ scale(hms_smoke_heavy)
-> try({
-+   fit <- glm(as.formula(formula_filled), data=wide, family=binomial())
-+   cat("Model fit successfully!\n")
-+ })
-Error in colMeans(x, na.rm = TRUE) : 'x' must be numeric
+# Verify the fix
+cat("After cleaning - hms_smoke_heavy type:", class(wide$hms_smoke_heavy), "\n")
+cat("Sample values:", head(wide$hms_smoke_heavy, 5), "\n")
+cat("Any remaining lists?", any(sapply(wide[exposure_cols_clean], is.list)), "\n")
