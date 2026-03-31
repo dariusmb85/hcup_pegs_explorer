@@ -211,7 +211,7 @@ list(
     name = exwas_overall,
     command = {
       exposure_rollup_complete
-      system("Rscript r/06_ewas_stratified.R all")
+      system("Rscript r/06_ewas_enhanced.R all")
       "data_test/gold/exwas_all.parquet"
     },
     format = "file",
@@ -225,7 +225,7 @@ list(
     name = exwas_male,
     command = {
       exposure_rollup_complete
-      system("Rscript r/06_ewas_stratified.R male")
+      system("Rscript r/06_ewas_enhanced.R male")
       "data_test/gold/exwas_male.parquet"
     },
     format = "file",
@@ -240,7 +240,7 @@ list(
     name = exwas_female,
     command = {
       exposure_rollup_complete
-      system("Rscript r/06_ewas_stratified.R female")
+      system("Rscript r/06_ewas_enhanced.R female")
       "data_test/gold/exwas_female.parquet"
     },
     format = "file",
