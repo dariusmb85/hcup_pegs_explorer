@@ -230,14 +230,14 @@ list(
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
       exposure_cols <- unique(ex$exposure_id)
-          for(col in exposure_cols) {
-             if(col %in% names(wide)) {
-               wide[[col]] <- sapply(wide[[col]], function(x) {
-                  if(is.null(x) || length(x) == 0) return(NA_real_)
-                 as.numeric(x)[1]
-               })
-             }
-          }
+      for(col in exposure_cols) {
+        if(col %in% names(wide)) {
+          wide[[col]] <- sapply(wide[[col]], function(x) {
+            if(is.null(x) || length(x) == 0) return(NA_real_)
+            as.numeric(x)[1]
+          })
+        }
+      }
 
       model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models_overall <- model_cfg[sapply(model_cfg, function(m) {
@@ -304,14 +304,14 @@ list(
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
       exposure_cols <- unique(ex$exposure_id)
-          for(col in exposure_cols) {
-             if(col %in% names(wide)) {
-               wide[[col]] <- sapply(wide[[col]], function(x) {
-                  if(is.null(x) || length(x) == 0) return(NA_real_)
-                 as.numeric(x)[1]
-               })
-             }
-          }
+      for(col in exposure_cols) {
+        if(col %in% names(wide)) {
+          wide[[col]] <- sapply(wide[[col]], function(x) {
+            if(is.null(x) || length(x) == 0) return(NA_real_)
+            as.numeric(x)[1]
+          })
+        }
+      }
 
       model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models_male <- model_cfg[sapply(model_cfg, function(m) {
@@ -382,14 +382,14 @@ list(
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
       exposure_cols <- unique(ex$exposure_id)
-          for(col in exposure_cols) {
-             if(col %in% names(wide)) {
-               wide[[col]] <- sapply(wide[[col]], function(x) {
-                  if(is.null(x) || length(x) == 0) return(NA_real_)
-                 as.numeric(x)[1]
-               })
-             }
-          }
+      for(col in exposure_cols) {
+         if(col %in% names(wide)) {
+           wide[[col]] <- sapply(wide[[col]], function(x) {
+              if(is.null(x) || length(x) == 0) return(NA_real_)
+             as.numeric(x)[1]
+           })
+         }
+      }
 
       model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
       models_female <- model_cfg[sapply(model_cfg, function(m) {
