@@ -72,3 +72,18 @@ for(col in exposure_cols_clean) {
 cat("After cleaning - hms_smoke_heavy type:", class(wide$hms_smoke_heavy), "\n")
 cat("Sample values:", head(wide$hms_smoke_heavy, 5), "\n")
 cat("Any remaining lists?", any(sapply(wide[exposure_cols_clean], is.list)), "\n")
+
+
+>
+>       ex_wide <- ex %>%
++         dplyr::select(person_id, ym, exposure_id, value) %>%
++         tidyr::pivot_wider(names_from = exposure_id, values_from = value)
+Warning message:
+Values from `value` are not uniquely identified; output will contain list-cols.
+• Use `values_fn = list` to suppress this warning.
+• Use `values_fn = {summary_fun}` to summarise duplicates.
+• Use the following dplyr code to identify duplicates.
+  {data} %>%
+  dplyr::group_by(person_id, ym, exposure_id) %>%
+  dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+  dplyr::filter(n > 1L)
