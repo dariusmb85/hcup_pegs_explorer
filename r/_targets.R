@@ -229,15 +229,26 @@ list(
 
       wide <- pm %>% dplyr::left_join(ex_wide, by = c("person_id", "ym"))
 
-      model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
-      models_overall <- model_cfg[sapply(model_cfg, function(m) {
-        grepl("_overall$", m$id) || (is.null(m$strata) || m$strata == "all")
-      })]
+    # ADD THE LIST-COLUMN FIX HERE:
+    exposure_cols <- unique(ex$exposure_id)
+    for(col in exposure_cols) {
+      if(col %in% names(wide)) {
+        wide[[col]] <- sapply(wide[[col]], function(x) {
+          if(is.null(x) || length(x) == 0) return(NA_real_)
+          as.numeric(x)[1]
+        })
+      }
+    }
+
+    model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
+    models_overall <- model_cfg[sapply(model_cfg, function(m) {
+      grepl("_overall$", m$id) || (is.null(m$strata) || m$strata == "all")
+    })]
 
       source(here::here("r", "06_ewas_enhanced.R"), local = TRUE)
 
-      exposure_cols <- unique(ex$exposure_id)
-      outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
+    # Note: exposure_cols already defined above
+    outcome_cols <- names(wide)[grepl("_flag$", names(wide))]
 
       results <- dplyr::bind_rows(
         lapply(models_overall, function(spec) {
