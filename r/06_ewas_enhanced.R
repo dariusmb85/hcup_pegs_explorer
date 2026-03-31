@@ -254,6 +254,12 @@ main <- function(strata_filter) {
     partitioning = c("facility_state", "strata", "model_spec_id")
   )
 
+  # ADD THIS - Write individual strata file:
+  output_file <- paste0("data_test/gold/exwas_", target_strata, ".parquet")
+  arrow::write_parquet(all_results, output_file)
+  cat("Results written to:", output_file, "\n")
+
+
   cat("\n✓ ExWAS for strata:", target_strata, "complete\n")
 
 
