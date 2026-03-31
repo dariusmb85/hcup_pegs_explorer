@@ -143,6 +143,12 @@ main <- function(strata_filter) {
   pm <- open_dataset(path(paths$gold, "person_month")) %>%
     collect()
 
+  # Extract state in data
+  states_in_data <- unique(pm$facility_state)
+  cat("States found in data:", paste(states_in_data, collapse = ", ") "\n")
+
+  primary_state <- states_in_data[1]
+
   cat("  Person-months:", format(nrow(pm), big.mark=","), "\n")
   cat("  Males:", format(sum(pm$female == 0, na.rm=TRUE), big.mark=","), "\n")
   cat("  Females:", format(sum(pm$female == 1, na.rm=TRUE), big.mark=","), "\n")
@@ -215,7 +221,8 @@ main <- function(strata_filter) {
     group_by(model_spec_id, strata) %>%
     mutate(
       p.adj.fdr = p.adjust(p_value, method = "fdr"),
-      p.adj.bonferroni = p.adjust(p_value, method = "bonferroni")
+      p.adj.bonferroni = p.adjust(p_value, method = "bonferroni"),
+      facility_state = primary_state
     ) %>%
     ungroup() %>%
     arrange(p_value)
