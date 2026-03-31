@@ -27,13 +27,31 @@ tar_target(
 
 
 
-model_cfg <- yaml::read_yaml(here::here("config", "covariates.yaml"))$exwas_models
-print(names(model_cfg))
-print(length(model_cfg))
+# In your ExWAS target, add this debug before model fitting:
+cat("Data columns:", paste(names(wide), collapse=", "), "\n")
+cat("Exposure columns found:", paste(exposure_cols, collapse=", "), "\n")
+cat("Outcome columns found:", paste(outcome_cols, collapse=", "), "\n")
+cat("Data rows:", nrow(wide), "\n")
 
+# Check for specific columns the formula needs
+cat("Has 'year' column:", "year" %in% names(wide), "\n")
+cat("Has 'season' column:", "season" %in% names(wide), "\n")
 
-Running model: logit_unadjusted_overall
-  Strata: all
-  Formula: {outcome} ~ scale({exposure})
-  Total tests: 4
-  Successful fits: 0
+# Try fitting one model manually to see the error:
+outcome <- outcome_cols[1]  # e.g., "asthma_flag"
+exposure <- exposure_cols[1]  # e.g., "pm25_black_carbon"
+
+# Check if these columns exist and have data
+cat("Outcome values:", table(wide[[outcome]], useNA="always"), "\n")
+cat("Exposure values:", summary(wide[[exposure]]), "\n")
+
+# Try the actual formula
+formula_str <- "{outcome} ~ scale({exposure})"
+formula_filled <- glue::glue(formula_str, outcome=outcome, exposure=exposure)
+cat("Formula:", formula_filled, "\n")
+
+# Try fitting
+try({
+  fit <- glm(as.formula(formula_filled), data=wide, family=binomial())
+  cat("Model fit successfully!\n")
+})
