@@ -145,7 +145,7 @@ main <- function(strata_filter) {
 
   # Extract state in data
   states_in_data <- unique(pm$facility_state)
-  cat("States found in data:", paste(states_in_data, collapse = ", ") "\n")
+  cat("States found in data:", paste(states_in_data, collapse = ", "), "\n")
 
   primary_state <- states_in_data[1]
 
