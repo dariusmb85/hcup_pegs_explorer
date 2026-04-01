@@ -1,4 +1,15 @@
-options(warn = 1)
+# Suppress common HPC warnings
+options(warn = 1)  # Show warnings but don't stop
+
+# Suppress sp package retirement warnings
+options(sp_evolution_status = 2)
+
+# Suppress libxml version warnings (HPC-specific)
+suppressMessages({
+  if (requireNamespace("xml2", quietly = TRUE)) {
+    library(xml2)
+  }
+})
 
 # Load .env file FIRST
 if (file.exists(".env")) {
@@ -30,20 +41,23 @@ pkgs <- c(
   "dataverse"
 )
 
-# Install if missing
+# Install if missing (suppress messages)
 invisible(
-  lapply(
-    pkgs,
-    function(p) {
+  suppressMessages(
+    lapply(pkgs, function(p) {
       if (!requireNamespace(p, quietly = TRUE)) {
-        install.packages(p)
+        install.packages(p, quiet = TRUE)
       }
-    }
+    })
   )
 )
 
-# LOAD the packages
-invisible(lapply(pkgs, library, character.only = TRUE))
+# Load packages (suppress startup messages)
+invisible(
+  suppressMessages(
+    lapply(pkgs, library, character.only = TRUE, quietly = TRUE)
+  )
+)
 
 root <- Sys.getenv("PARQUET_ROOT", unset = here("data"))
 
