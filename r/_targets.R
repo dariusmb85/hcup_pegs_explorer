@@ -4,7 +4,7 @@ library(tarchetypes)
 
 # Set CRAN mirror to fix package installation errors
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
-
+source("r/00_env.R")
 # ==============================================================================
 # SLURM Controller Setup
 # ==============================================================================
@@ -104,7 +104,7 @@ list(
     name = silver_layer,
     command = {
       source(here::here("r", "01_hcup_silver.R"))
-      check_file_exists("data/silver/visit")
+      check_file_exists(fs::path(paths$silver,"visit"))
     },
     format = "file",
     deployment = "main"
@@ -121,7 +121,7 @@ list(
     command = {
       silver_layer
       source(here::here("r", "015_geocode_enrich.R"))
-      check_file_exists("data/silver/visit")
+      check_file_exists(fs::path(paths$silver,"visit"))
     },
     format = "file",
     deployment = "main"
@@ -138,7 +138,7 @@ list(
     command = {
       geocoded_visits
       source(here::here("r", "07_data_quality.R"))
-      check_file_exists("data/silver/visit_clean")  # ← Check for cleaned data
+      check_file_exists(fs::path(paths$silver,"visit_clean")) # ← Check for cleaned data
     },
     format = "file",
     deployment = "main"
@@ -152,7 +152,7 @@ list(
     command = {
       qc_and_clean
       source(here::here("r", "04_person_monthV2.R"))
-      check_file_exists("data/gold/person_month")
+      check_file_exists(fs::path(paths$gold,"person_month"))
     },
     format = "file",
     resources = tar_resources(
@@ -168,7 +168,7 @@ list(
     command = {
       person_month_cohort
       source(here::here("r", "02_dataverse_exposures.R"))
-      check_file_exists("data/gold/exposures_monthly")
+      check_file_exists(fs::path(paths$gold,"exposures_monthly"))
     },
     format = "file",
     deployment = "main"
@@ -184,7 +184,7 @@ list(
       person_month_cohort
       exposures_downloaded
       source(here::here("r", "05_join_exposures.R"))
-      check_file_exists("data/gold/person_month_exposures")
+      check_file_exists(fs::path(paths$gold,"person_month_exposures"))
     },
     format = "file",
     deployment = "main"
@@ -198,7 +198,7 @@ list(
     command = {
       joined_data
       source(here::here("r", "03_exposure_rollup.R"))
-      check_file_exists("data/gold/exposure_rollup")
+      check_file_exists(fs::path(paths$gold,"exposure_rollup"))
     },
     format = "file",
     deployment = "main"
@@ -212,7 +212,7 @@ list(
     command = {
       exposure_rollup_complete
       system("Rscript r/06_ewas_enhanced.R all")
-      "data/gold/exwas_all.parquet"
+      fs::path(paths$gold,"exwas_all.parquet")
     },
     format = "file",
     resources = tar_resources(
@@ -226,7 +226,7 @@ list(
     command = {
       exposure_rollup_complete
       system("Rscript r/06_ewas_enhanced.R male")
-      "data/gold/exwas_male.parquet"
+      fs::path(paths$gold,"exwas_male.parquet")
     },
     format = "file",
     resources = tar_resources(
@@ -241,7 +241,7 @@ list(
     command = {
       exposure_rollup_complete
       system("Rscript r/06_ewas_enhanced.R female")
-      "data/gold/exwas_female.parquet"
+      fs::path(paths$gold,"exwas_female.parquet")
     },
     format = "file",
     resources = tar_resources(
@@ -276,9 +276,9 @@ list(
       all_results <- dplyr::bind_rows(overall, male, female) %>%
         dplyr::arrange(p_value)
 
-      arrow::write_parquet(all_results, "data/gold/exwas_all_results.parquet")
+      arrow::write_parquet(all_results, fs::path(paths$gold,"exwas_all_results.parquet"))
 
-      "data/gold/exwas_all_results.parquet"
+      fs::path(paths$gold,"exwas_all_results.parquet")
     },
     format = "file",
     deployment = "main"
@@ -311,14 +311,14 @@ list(
           )
       )
 
-      saveRDS(summary, "data/gold/exwas_summary.rds")
+      saveRDS(summary, fs::path(paths$gold,"exwas_summary.rds"))
 
       cat("\n=== PIPELINE COMPLETE ===\n")
       cat("Total tests:", summary$total_tests, "\n")
       cat("Significant (FDR<0.05):", summary$sig_fdr, "\n\n")
       print(summary$by_model)
 
-      "data/gold/exwas_summary.rds"
+      fs::path(paths$gold,"exwas_summary.rds")
     },
     format = "file",
     deployment = "main"
