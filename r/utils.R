@@ -10,13 +10,15 @@ hash_id <- function(..., salt = Sys.getenv("PERSON_ID_SALT")) {
 write_parquet_ds <- function(df,
                              out_dir,
                              partitioning = NULL,
+                             compression = 'snappy',
                              filename = NULL) {
 
   arrow::write_dataset(
     df,
     out_dir,
     partitioning = partitioning,
-    existing_data_behavior = "overwrite"
+    existing_data_behavior = "overwrite",
+    compression = compression
   )
 
   invisible(out_dir)

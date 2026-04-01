@@ -276,7 +276,10 @@ list(
       all_results <- dplyr::bind_rows(overall, male, female) %>%
         dplyr::arrange(p_value)
 
-      arrow::write_parquet(all_results, fs::path(paths$gold,"exwas_all_results.parquet"))
+      arrow::write_parquet(all_results,
+                           fs::path(paths$gold,
+                                    "exwas_all_results.parquet",
+                           compression = 'snappy'))
 
       fs::path(paths$gold,"exwas_all_results.parquet")
     },

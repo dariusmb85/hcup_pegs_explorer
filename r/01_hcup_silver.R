@@ -223,5 +223,6 @@ arrow::write_dataset(
   all_visits,
   fs::path(paths$silver, "visit"),
   partitioning = c("facility_state", "year"),
-  existing_data_behavior = "overwrite"
+  existing_data_behavior = "overwrite",
+  compression = 'snappy'
 )

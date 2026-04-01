@@ -263,7 +263,7 @@ main <- function(strata_filter) {
 
   # ADD THIS - Write individual strata file:
   output_file <- paste0("data_test/gold/exwas_", target_strata, ".parquet")
-  arrow::write_parquet(all_results, output_file)
+  arrow::write_parquet(all_results, output_file, compression = 'snappy')
   cat("Results written to:", output_file, "\n")
 
 

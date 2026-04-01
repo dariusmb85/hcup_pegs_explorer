@@ -425,7 +425,8 @@ write_dataset(
   path(paths$silver, "visit_clean"),
   partitioning = c("facility_state", "year"),
   format = "parquet",
-  existing_data_behavior = "overwrite"
+  existing_data_behavior = "overwrite",
+  compression = 'snappy'
 )
 
 # Update person table to only include people with remaining visits
@@ -446,7 +447,8 @@ write_dataset(
   persons_clean,
   path(paths$silver, "person_clean"),
   format = "parquet",
-  existing_data_behavior = "overwrite"
+  existing_data_behavior = "overwrite",
+  compression = 'snappy'
 )
 
 cat("✓ Cleaned data saved:\n")

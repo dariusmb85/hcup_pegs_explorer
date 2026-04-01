@@ -75,7 +75,8 @@ enrich_visits_with_tracts <- function() {
     visits_enriched,
     path(paths$silver, "visit"),
     partitioning = c("facility_state", "year"),
-    existing_data_behavior = "overwrite"
+    existing_data_behavior = "overwrite",
+    compression = 'snappy'
   )
   
   message("Done!")
