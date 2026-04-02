@@ -66,38 +66,38 @@ main <- function() {
   message(glue("Processing {nrow(vis_flagged)} visits into person-months..."))
 
   # Build person-month records
-pm <- vis_flagged %>%
-  transmute(
-    person_id,
-    ym = admit_date,
-    zip5,
-    tract_geoid,
-    n_visits = 1L,
-    db_type,
-    facility_state,
-    age,       # ADD
-    female,    # ADD
-    race,      # ADD
-    across(all_of(pheno_cols), ~.)
-  ) %>%
-  group_by(person_id, ym) %>%
-  summarise(
-    zip5 = last(na.omit(zip5)),
-    tract_geoid = last(na.omit(tract_geoid)),
-    n_visits = sum(n_visits, na.rm = TRUE),
+  pm <- vis_flagged %>%
+    transmute(
+      person_id,
+      ym = admit_date,
+      zip5,
+      tract_geoid,
+      n_visits = 1L,
+      db_type,
+      facility_state,
+      age,       # ADD
+      female,    # ADD
+      race,      # ADD
+      across(all_of(pheno_cols), ~.)
+    ) %>%
+    group_by(person_id, ym) %>%
+    summarise(
+      zip5 = last(na.omit(zip5)),
+      tract_geoid = last(na.omit(tract_geoid)),
+      n_visits = sum(n_visits, na.rm = TRUE),
 
-    # Aggregate db_type
-    db_type = paste(unique(na.omit(db_type)), collapse=","),
-    facility_state = facility_state,
+      # Aggregate db_type
+      db_type = paste(unique(na.omit(db_type)), collapse=","),
+      facility_state = facility_state,
 
-    # Aggregate demographics (take first non-missing value)
-    age = first(na.omit(age)),
-    female = first(na.omit(female)),
-    race = first(na.omit(race)),
+      # Aggregate demographics (take first non-missing value)
+      age = first(na.omit(age)),
+      female = first(na.omit(female)),
+      race = first(na.omit(race)),
 
-    across(all_of(pheno_cols), ~any(., na.rm = TRUE)),
-    .groups = "drop"
-  ) %>%
+      across(all_of(pheno_cols), ~any(., na.rm = TRUE)),
+      .groups = "drop"
+    ) %>%
     mutate(
       year = lubridate::year(ym),
       month = lubridate::month(ym),

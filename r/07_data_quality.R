@@ -170,8 +170,8 @@ cat("CHECK 5: Implausible demographics\n")
 demo_issues <- visits %>%
   filter(
     age < 0 | age > 120 |  # Implausible age
-    (female != 0 & female != 1 & !is.na(female)) |  # Invalid sex
-    race < 0 | race > 10  # Invalid race code
+      (female != 0 & female != 1 & !is.na(female)) |  # Invalid sex
+      race < 0 | race > 10  # Invalid race code
   ) %>%
   select(person_id, visit_id, age, female, race, dx_primary)
 
@@ -229,7 +229,7 @@ male_pregnancy <- visits %>%
   filter(female == 0) %>%  # Males
   filter(
     grepl(paste0("^(", paste(preg_codes_icd9, collapse="|"), ")"), dx_primary) |
-    grepl(paste0("^", preg_codes_icd10), dx_primary)
+      grepl(paste0("^", preg_codes_icd10), dx_primary)
   ) %>%
   select(person_id, visit_id, admit_date, age, female, dx_primary)
 
@@ -279,8 +279,8 @@ cat("CHECK 9: Geographic outliers\n")
 geo_issues <- visits %>%
   filter(
     is.na(zip5) |
-    nchar(zip5) != 5 |
-    grepl("[^0-9]", zip5)  # Non-numeric ZIP
+      nchar(zip5) != 5 |
+      grepl("[^0-9]", zip5)  # Non-numeric ZIP
   ) %>%
   select(person_id, visit_id, zip5, tract_geoid, facility_state)
 

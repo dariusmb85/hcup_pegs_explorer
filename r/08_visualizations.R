@@ -185,7 +185,7 @@ confound_data <- results %>%
   ) %>%
   mutate(
     model_label = ifelse(model_spec_id == "logit_unadjusted_overall",
-                        "Unadjusted", "Temporal Adjusted")
+                         "Unadjusted", "Temporal Adjusted")
   )
 
 p4 <- ggplot(confound_data, aes(x = exposure_label, y = or, fill = model_label)) +
