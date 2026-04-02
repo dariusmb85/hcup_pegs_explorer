@@ -289,7 +289,7 @@ list(
         dplyr::arrange(p_value)
 
       arrow::write_parquet(all_results,
-                           fs::path(paths$gold, "exwas_all_results.parquet"),
+                           fs::path(paths$gold, "exwas_combined_results.parquet"),
                            compression = 'snappy')
 
       fs::path(paths$gold, "exwas_combined_results.parquet")
