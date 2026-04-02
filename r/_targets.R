@@ -265,36 +265,38 @@ list(
       exwas_overall  # ← DEPENDENCY 1
       exwas_male     # ← DEPENDENCY 2
       exwas_female   # ← DEPENDENCY 3
-
       library(arrow)
       library(dplyr)
 
-      overall <- if (file.exists(exwas_overall)) {
-        arrow::read_parquet(exwas_overall)
+      # FIX: Use actual file paths, not target names
+      overall_file <- fs::path(paths$gold, "exwas_all.parquet")
+      male_file <- fs::path(paths$gold, "exwas_male.parquet")
+      female_file <- fs::path(paths$gold, "exwas_female.parquet")
+
+      overall <- if (file.exists(overall_file)) {
+        arrow::read_parquet(overall_file)
       } else NULL
 
-      male <- if (!is.null(exwas_male) && file.exists(exwas_male)) {
-        arrow::read_parquet(exwas_male)
+      male <- if (file.exists(male_file)) {
+        arrow::read_parquet(male_file)
       } else NULL
 
-      female <- if (!is.null(exwas_female) && file.exists(exwas_female)) {
-        arrow::read_parquet(exwas_female)
+      female <- if (file.exists(female_file)) {
+        arrow::read_parquet(female_file)
       } else NULL
 
       all_results <- dplyr::bind_rows(overall, male, female) %>%
         dplyr::arrange(p_value)
 
       arrow::write_parquet(all_results,
-                           fs::path(paths$gold,
-                                    "exwas_all_results.parquet",
-                           compression = 'snappy'))
+                           fs::path(paths$gold, "exwas_all_results.parquet"),
+                           compression = 'snappy')
 
-      fs::path(paths$gold,"exwas_all_results.parquet")
+      fs::path(paths$gold, "exwas_combined_results.parquet")
     },
     format = "file",
-    deployment = "main"
-  ),
-
+    deployment = "main")
+  ,
   # ============================================================================
   # Stage 09: Final Report (DEPENDS ON exwas_combined)
   # ============================================================================
@@ -306,7 +308,7 @@ list(
       library(arrow)
       library(dplyr)
 
-      results <- arrow::read_parquet(exwas_combined)
+      results <- arrow::read_parquet(fs::path(paths$gold, "exwas_combined_results.parquet"))
 
       summary <- list(
         total_tests = nrow(results),
