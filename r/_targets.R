@@ -101,8 +101,7 @@ list(
   # ============================================================================
   tar_files(
   name = bronze_files,
-  paths = list.files(path(paths$bronze), pattern = "\\.parquet$", full.names = TRUE),
-  format = "file"
+  list.files(path(paths$bronze), pattern = "\\.parquet$", full.names = TRUE)
   ),
 
   # ============================================================================
