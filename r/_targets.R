@@ -96,6 +96,14 @@ check_file_exists <- function(path) {
 # ==============================================================================
 
 list(
+  # ============================================================================
+  # Stage 0: Pre-check files
+  # ============================================================================
+  tar_files(
+  name = bronze_files,
+  paths = list.files(path(paths$bronze), pattern = "\\.parquet$", full.names = TRUE),
+  format = "file"
+  ),
 
   # ============================================================================
   # Stage 1: Silver Layer
@@ -103,6 +111,7 @@ list(
   tar_target(
     name = silver_layer,
     command = {
+      bronze_files
       source(here::here("r", "01_hcup_silver.R"))
       check_file_exists(fs::path(paths$silver,"visit"))
     },
