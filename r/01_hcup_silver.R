@@ -11,7 +11,10 @@ bronze_files <- list.files(
   pattern = "\\.parquet$",
   recursive = TRUE,
   full.names = TRUE
-)
+) %>%
+  # Exclude 2015 quarterly files, keep the combined file
+  .[!grepl("2015.*q[1-4]", .)] %>%
+  .[!grepl("2015.*q1q3", .)]
 
 # Load PheCode mapping and create lookup
 phecode_map <- read_csv("phecodes_cm_rolled.csv")
