@@ -9,6 +9,7 @@ data_test/
 *.duckdb
 *.csv
 *.xlsx
+_debug/
 
 # R files
 .Rhistory
