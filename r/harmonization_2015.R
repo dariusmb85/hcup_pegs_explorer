@@ -41,11 +41,34 @@ harmonize_2015_quarters <- function() {
     names(q4) <- gsub("^I10_DX_Visit_Reason", "DX_Visit_Reason", names(q4))
 
     # Convert all shared columns to character to avoid type conflicts
+    # Handle type conflicts intelligently
     shared_cols <- intersect(names(q1q3), names(q4))
 
     for(col in shared_cols) {
-      q1q3[[col]] <- as.character(q1q3[[col]])
-      q4[[col]] <- as.character(q4[[col]])
+      q1q3_type <- class(q1q3[[col]])[1]
+      q4_type <- class(q4[[col]])[1]
+
+      if(q1q3_type != q4_type) {
+        # Handle the most common conflict patterns
+        if(q1q3_type == "logical" || q4_type == "logical") {
+          # One file has all NAs (logical), convert both to character
+          q1q3[[col]] <- as.character(q1q3[[col]])
+          q4[[col]] <- as.character(q4[[col]])
+        } else if(q1q3_type %in% c("numeric", "integer") && q4_type == "character") {
+          # Numeric vs character - convert both to character
+          q1q3[[col]] <- as.character(q1q3[[col]])
+          q4[[col]] <- as.character(q4[[col]])
+        } else if(q1q3_type == "character" && q4_type %in% c("numeric", "integer")) {
+          # Character vs numeric - convert both to character
+          q1q3[[col]] <- as.character(q1q3[[col]])
+          q4[[col]] <- as.character(q4[[col]])
+        } else {
+          # Any other conflicts - default to character
+          q1q3[[col]] <- as.character(q1q3[[col]])
+          q4[[col]] <- as.character(q4[[col]])
+        }
+      }
+      # If types match, leave them alone (preserves YEAR, AGE, etc. as numeric)
     }
 
     # Combine them
