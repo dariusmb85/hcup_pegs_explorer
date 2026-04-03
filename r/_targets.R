@@ -99,11 +99,37 @@ list(
   # ============================================================================
   # Stage 0: Pre-check files
   # ============================================================================
-  tar_files(
-    name = bronze_files,
-    list.files(path(paths$bronze), pattern = "\\.parquet$", full.names = TRUE)
+  tar_target(
+    name = harmonize_2015,
+    command = {
+      source(here::here("r", "harmonization_2015.R"))
+
+      # Return paths to all combined files that were created
+      list.files(
+        paths$bronze,
+        pattern = "_2015_COMBINED\\.parquet$",
+        full.names = TRUE
+      )
+    },
+    format = "file"
   ),
 
+  tar_target(
+    name = bronze_files,
+    command = {
+      harmonize_2015
+
+      list.files(
+        paths$bronze,
+        pattern = "\\.parquet$",
+        recursive = TRUE,
+        full.names = TRUE
+      ) %>%
+        # Exclude 2015 quarterly files, keep combined
+        .[!grepl("2015.*(q1q3|q4)", .)]
+    },
+    format = "file"
+  ),
   # ============================================================================
   # Stage 1: Silver Layer
   # ============================================================================
