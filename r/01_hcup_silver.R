@@ -19,36 +19,36 @@ phecode_lookup <- setNames(phecode_map$phecode, phecode_map$code)
 
 # format_icd_for_phecode function
 format_icd_for_phecode <- function(code) {
-  if(is.na(code) || code == "") return(NA_character_)
+  if (is.na(code) || code == "") return(NA_character_)
 
   # ICD-9 E-codes: decimal after 4th position (check BEFORE general letters)
-  if(grepl("^E[0-9]", code)) {
-    if(nchar(code) <= 4) return(code)
-    if(nchar(code) > 4) {
+  if (grepl("^E[0-9]", code)) {
+    if (nchar(code) <= 4) return(code)
+    if (nchar(code) > 4) {
       return(paste0(substr(code, 1, 4), ".", substr(code, 5, nchar(code))))
     }
   }
 
   # ICD-9 V-codes: decimal after 3rd position
-  if(grepl("^V[0-9]", code)) {
-    if(nchar(code) <= 3) return(code)
-    if(nchar(code) > 3) {
+  if (grepl("^V[0-9]", code)) {
+    if (nchar(code) <= 3) return(code)
+    if (nchar(code) > 3) {
       return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
     }
   }
 
   # ICD-10 detection: starts with letter (but not E or V followed by numbers)
-  if(grepl("^[A-Z]", code)) {
-    if(nchar(code) == 3) return(code)
-    if(nchar(code) > 3) {
+  if (grepl("^[A-Z]", code)) {
+    if (nchar(code) == 3) return(code)
+    if (nchar(code) > 3) {
       return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
     }
   }
 
   # ICD-9 numeric codes: decimal after 3rd position
-  if(grepl("^[0-9]+$", code)) {
-    if(nchar(code) == 3) return(code)
-    if(nchar(code) > 3) {
+  if (grepl("^[0-9]+$", code)) {
+    if (nchar(code) == 3) return(code)
+    if (nchar(code) > 3) {
       return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
     }
   }
@@ -116,7 +116,9 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
 
   out <- tibble::tibble(
     visit_id          = choose_first(df, m$visit_id),
-    person_id = purrr::map_chr(format(person_key, scientific=FALSE, trim=TRUE), hash_id),
+    person_id = purrr::map_chr(format(person_key,
+                                      scientific = FALSE,
+                                      trim = TRUE), hash_id),
     admit_date        = admit_date_month,
     discharge_date    = discharge_date_month,
     dx_primary        = choose_first(df, m$dx_primary),
@@ -183,46 +185,31 @@ infer_type <- function(path) {
   "SID"
 }
 
-all_visits <- purrr::map_dfr(
-  bronze_files,
-  function(f) {
-    df <- read_one(f)
-    normalize_visit(df, infer_type(f))
+# Process files individually to avoid memory issues
+for (f in bronze_files) {
+  cat("Processing:", basename(f), "\n")
+
+  # Process individual file
+  df <- read_one(f)
+  visits <- normalize_visit(df, infer_type(f)) %>%
+    mutate(year = lubridate::year(admit_date)) %>%
+    mutate(dx_primary_phecode = phecode_lookup[sapply(dx_primary, format_icd_for_phecode)])
+
+  # Add secondary diagnosis PheCodes for THIS file
+  dx_cols <- names(visits)[grepl("^dx[0-9]+$", names(visits))]
+  for (col in dx_cols) {
+    new_col <- paste0(col, "_phecode")
+    visits[[new_col]] <- sapply(visits[[col]], function(icd) {
+      if (is.na(icd)) return(NA_character_)
+      phecode_match <- phecode_map$phecode[phecode_map$icd_code == icd][1]
+      if (length(phecode_match) > 0) phecode_match else NA_character_
+    })
   }
-) %>%
-  dplyr::mutate(year = lubridate::year(admit_date))
 
-all_visits <- all_visits %>%
-  mutate(
-    dx_primary_phecode = phecode_lookup[sapply(dx_primary, format_icd_for_phecode)]
-  )
-
-# Add all secondary diagnosis PheCodes (dx1-dx30)
-dx_cols <- names(all_visits)[grepl("^dx[0-9]+$", names(all_visits))]
-for(col in dx_cols) {
-  new_col <- paste0(col, "_phecode")
-  all_visits[[new_col]] <- sapply(all_visits[[col]], function(icd) {
-    if(is.na(icd)) return(NA_character_)
-    phecode_match <- phecode_map$phecode[phecode_map$icd_code == icd][1]
-    if(length(phecode_match) > 0) phecode_match else NA_character_
-  })
+  # Write immediately to avoid memory accumulation
+  write_parquet_ds(visits, fs::path(paths$silver, "visit"),
+                   partitioning = c("facility_state", "year"),
+                   existing_data_behavior = "delete_matching")
 }
 
-persons <- all_visits %>%
-  dplyr::distinct(person_id) %>%
-  dplyr::mutate(
-    sex       = NA_character_,
-    age_group = NA_character_,
-    race      = NA_character_,
-    payer     = NA_character_
-  )
-
-write_parquet_ds(persons, fs::path(paths$silver, "person"))
-
-arrow::write_dataset(
-  all_visits,
-  fs::path(paths$silver, "visit"),
-  partitioning = c("facility_state", "year"),
-  existing_data_behavior = "overwrite",
-  compression = 'snappy'
-)
+cat("\n✓ Silver layer complete\n")
