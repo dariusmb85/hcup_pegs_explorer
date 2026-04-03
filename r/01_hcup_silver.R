@@ -207,9 +207,11 @@ for (f in bronze_files) {
   }
 
   # Write immediately to avoid memory accumulation
-  write_parquet_ds(visits, fs::path(paths$silver, "visit"),
-                   partitioning = c("facility_state", "year"),
-                   existing_data_behavior = "delete_matching")
+  arrow::write_dataset(visits,
+                     fs::path(paths$silver, "visit"),
+                     partitioning = c("facility_state", "year"),
+                     existing_data_behavior = "delete_matching",
+                     compression = "snappy")
 }
 
 cat("\n✓ Silver layer complete\n")
