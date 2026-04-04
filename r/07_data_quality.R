@@ -423,7 +423,7 @@ cat("Writing cleaned visits...\n")
 write_dataset(
   visits_clean,
   path(paths$silver, "visit_clean"),
-  partitioning = c("facility_state", "year"),
+  partitioning = c("facility_state", "db_type", "year"),
   format = "parquet",
   existing_data_behavior = "overwrite",
   compression = 'snappy'

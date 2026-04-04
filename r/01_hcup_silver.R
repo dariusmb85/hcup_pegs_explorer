@@ -212,7 +212,7 @@ for (f in bronze_files) {
   # Write immediately to avoid memory accumulation
   arrow::write_dataset(visits,
                      fs::path(paths$silver, "visit"),
-                     partitioning = c("facility_state", "year"),
+                     partitioning = c("facility_state", "db_type", "year"),
                      existing_data_behavior = "delete_matching",
                      compression = "snappy")
 }

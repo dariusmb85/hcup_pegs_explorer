@@ -139,7 +139,7 @@ main <- function() {
   write_parquet_ds(
     pm,
     path(paths$gold, "person_month"),
-    partitioning = c("facility_state", "year")
+    partitioning = c("facility_state", "db_type", "year")
   )
 
   message("✓ Complete\n")

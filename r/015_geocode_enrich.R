@@ -74,7 +74,7 @@ enrich_visits_with_tracts <- function() {
   arrow::write_dataset(
     visits_enriched,
     path(paths$silver, "visit"),
-    partitioning = c("facility_state", "year"),
+    partitioning = c("facility_state", "db_type", "year"),
     existing_data_behavior = "overwrite",
     compression = 'snappy'
   )

@@ -10,12 +10,12 @@ library(tidyr)
 theme_set(theme_bw(base_size = 12))
 
 # Create output directory
-dir.create("data_test/gold/figures", showWarnings = FALSE)
+dir.create(path(paths$gold,"figures"), showWarnings = FALSE)
 
 cat("=== Creating ExWAS Visualizations ===\n\n")
 
 # Load results
-results <- open_dataset("data_test/gold/exwas_result_stratified") %>% collect()
+results <- open_dataset(path(paths$gold,"exwas_result_stratified")) %>% collect()
 
 # Clean up labels
 results <- results %>%
@@ -102,7 +102,7 @@ p1 <- ggplot(manhattan_data, aes(x = exposure_label, y = neglog10p, color = sig_
   ) +
   guides(shape = guide_legend(nrow = 2))
 
-ggsave("data_test/gold/figures/01_manhattan_plot.png", p1, width = 12, height = 8, dpi = 300)
+ggsave(path(paths$gold,"figures/01_manhattan_plot.png"), p1, width = 12, height = 8, dpi = 300)
 
 # ============================================================================
 # Plot 2: Forest Plot - Top 20 Associations
@@ -133,7 +133,7 @@ p2 <- ggplot(forest_data, aes(x = or, y = label)) +
   ) +
   theme(legend.position = "bottom")
 
-ggsave("data_test/gold/figures/02_forest_plot_top20.png", p2, width = 10, height = 8, dpi = 300)
+ggsave(path(paths$gold,"figures/02_forest_plot_top20.png"), p2, width = 10, height = 8, dpi = 300)
 
 # ============================================================================
 # Plot 3: Heatmap - All Associations
@@ -168,7 +168,7 @@ p3 <- ggplot(heatmap_data, aes(x = exposure_label, y = outcome_label, fill = log
     panel.grid = element_blank()
   )
 
-ggsave("data_test/gold/figures/03_heatmap_all.png", p3, width = 10, height = 7, dpi = 300)
+ggsave(path(paths$gold, "figures/03_heatmap_all.png"), p3, width = 10, height = 7, dpi = 300)
 
 # ============================================================================
 # Plot 4: Temporal Confounding Comparison
@@ -211,7 +211,7 @@ p4 <- ggplot(confound_data, aes(x = exposure_label, y = or, fill = model_label))
     legend.position = "bottom"
   )
 
-ggsave("data_test/gold/figures/04_temporal_confounding.png", p4, width = 10, height = 6, dpi = 300)
+ggsave(path(paths$gold, "figures/04_temporal_confounding.png"), p4, width = 10, height = 6, dpi = 300)
 
 # ============================================================================
 # Plot 5: Sex Stratification - Black Carbon Effects
@@ -253,7 +253,7 @@ p5 <- ggplot(sex_data, aes(x = outcome_label, y = or, color = strata_label)) +
   ) +
   coord_flip()
 
-ggsave("data_test/gold/figures/05_sex_stratification_black_carbon.png", p5,
+ggsave(path(paths$gold, "figures/05_sex_stratification_black_carbon.png"), p5,
        width = 10, height = 7, dpi = 300)
 
 # ============================================================================
@@ -296,14 +296,14 @@ p6 <- ggplot(volcano_data, aes(x = log2_or, y = neglog10p)) +
   ) +
   theme(legend.position = "bottom")
 
-ggsave("data_test/gold/figures/06_volcano_plot.png", p6, width = 10, height = 8, dpi = 300)
+ggsave(path(paths$gold, "figures/06_volcano_plot.png"), p6, width = 10, height = 8, dpi = 300)
 
 # ============================================================================
 # Summary
 # ============================================================================
 
 cat("\n✓ Visualizations complete!\n\n")
-cat("Figures saved to: data_test/gold/figures/\n")
+cat("Figures saved to:", path(paths$gold, "figures"), "/\n")
 cat("  01_manhattan_plot.png\n")
 cat("  02_forest_plot_top20.png\n")
 cat("  03_heatmap_all.png\n")
