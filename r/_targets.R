@@ -210,7 +210,7 @@ list(
 
 
   # ============================================================================
-  # Stage 5: Join Exposures (DEPENDS ON person_month_cohort + exposures_downloaded)
+  # Stage 5:Join Exposures (DEPENDS ON person_month_cohort + exposures_downloaded)
   # ============================================================================
   tar_target(
     name = joined_data,
@@ -233,131 +233,6 @@ list(
       joined_data
       source(here::here("r", "03_exposure_rollup.R"))
       check_file_exists(fs::path(paths$gold,"exposure_rollup"))
-    },
-    format = "file",
-    deployment = "main"
-  ),
-
-  # ============================================================================
-  # Stage 7a: ExWAS Overall (DEPENDS ON exposure_rollup_complete)
-  # ============================================================================
-  tar_target(
-    name = exwas_overall,
-    command = {
-      exposure_rollup_complete
-      system("Rscript r/06_ewas_enhanced.R all")
-      fs::path(paths$gold,"exwas_all.parquet")
-    },
-    format = "file",
-    resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem"))
-  ),
-  # ============================================================================
-  # Stage 7b: ExWAS Male (DEPENDS ON exposure_rollup_complete)
-  # ============================================================================
-  tar_target(
-    name = exwas_male,
-    command = {
-      exposure_rollup_complete
-      system("Rscript r/06_ewas_enhanced.R male")
-      fs::path(paths$gold,"exwas_male.parquet")
-    },
-    format = "file",
-    resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem"))
-  ),
-
-  # ============================================================================
-  # Stage 7c: ExWAS Female (DEPENDS On exposure_rollup_complete)
-  # ============================================================================
-  tar_target(
-    name = exwas_female,
-    command = {
-      exposure_rollup_complete
-      system("Rscript r/06_ewas_enhanced.R female")
-      fs::path(paths$gold,"exwas_female.parquet")
-    },
-    format = "file",
-    resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem"))
-  ),
-
-  # ============================================================================
-  # Stage 8: Combine Results (DEPENDS ON all 3 ExWAS targets)
-  # ============================================================================
-  tar_target(
-    name = exwas_combined,
-    command = {
-      exwas_overall  # ← DEPENDENCY 1
-      exwas_male     # ← DEPENDENCY 2
-      exwas_female   # ← DEPENDENCY 3
-      library(arrow)
-      library(dplyr)
-
-      # FIX: Use actual file paths, not target names
-      overall_file <- fs::path(paths$gold, "exwas_all.parquet")
-      male_file <- fs::path(paths$gold, "exwas_male.parquet")
-      female_file <- fs::path(paths$gold, "exwas_female.parquet")
-
-      overall <- if (file.exists(overall_file)) {
-        arrow::read_parquet(overall_file)
-      } else NULL
-
-      male <- if (file.exists(male_file)) {
-        arrow::read_parquet(male_file)
-      } else NULL
-
-      female <- if (file.exists(female_file)) {
-        arrow::read_parquet(female_file)
-      } else NULL
-
-      all_results <- dplyr::bind_rows(overall, male, female) %>%
-        dplyr::arrange(p_value)
-
-      arrow::write_parquet(all_results,
-                           fs::path(paths$gold, "exwas_combined_results.parquet"),
-                           compression = 'snappy')
-
-      fs::path(paths$gold, "exwas_combined_results.parquet")
-    },
-    format = "file",
-    deployment = "main")
-  ,
-  # ============================================================================
-  # Stage 09: Final Report (DEPENDS ON exwas_combined)
-  # ============================================================================
-  tar_target(
-    name = final_report,
-    command = {
-      exwas_combined  # ← EXPLICIT DEPENDENCY
-
-      library(arrow)
-      library(dplyr)
-
-      results <- arrow::read_parquet(fs::path(paths$gold, "exwas_combined_results.parquet"))
-
-      summary <- list(
-        total_tests = nrow(results),
-        sig_p05 = sum(results$p_value < 0.05, na.rm = TRUE),
-        sig_fdr = sum(results$p.adj.fdr < 0.05, na.rm = TRUE),
-        sig_bonf = sum(results$p.adj.bonferroni < 0.05, na.rm = TRUE),
-        by_model = results %>%
-          dplyr::group_by(model_spec_id) %>%
-          dplyr::summarise(
-            n_tests = dplyr::n(),
-            n_sig_fdr = sum(p.adj.fdr < 0.05, na.rm = TRUE),
-            .groups = "drop"
-          )
-      )
-
-      saveRDS(summary, fs::path(paths$gold,"exwas_summary.rds"))
-
-      cat("\n=== PIPELINE COMPLETE ===\n")
-      cat("Total tests:", summary$total_tests, "\n")
-      cat("Significant (FDR<0.05):", summary$sig_fdr, "\n\n")
-      print(summary$by_model)
-
-      fs::path(paths$gold,"exwas_summary.rds")
     },
     format = "file",
     deployment = "main"

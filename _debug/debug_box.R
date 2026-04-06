@@ -87,3 +87,145 @@ Values from `value` are not uniquely identified; output will contain list-cols.
   dplyr::group_by(person_id, ym, exposure_id) %>%
   dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
   dplyr::filter(n > 1L)
+
+
+# Around line 137, after this section:
+all_visits <- rbind(all_visits, silver_visits)
+all_persons <- rbind(all_persons, new_persons)
+
+# ADD THE DEBUGGING CODE HERE:
+cat("  File:", basename(fpath), "\n")
+cat("  Current persons table size:", round(object.size(all_persons) / 1024^2, 1), "MB\n")
+cat("  Current visits table size:", round(object.size(all_visits) / 1024^2, 1), "MB\n")
+cat("  Visits in this file:", nrow(silver_visits), "\n")
+cat("  Total persons so far:", nrow(all_persons), "\n")
+cat("  Total visits so far:", nrow(all_visits), "\n\n")
+
+# Then continue with existing code:
+} # End of for loop
+
+
+  # ============================================================================
+  # Stage 7a: ExWAS Overall (DEPENDS ON exposure_rollup_complete)
+  # ============================================================================
+  tar_target(
+    name = exwas_overall,
+    command = {
+      exposure_rollup_complete
+      system("Rscript r/06_ewas_enhanced.R all")
+      fs::path(paths$gold,"exwas_all.parquet")
+    },
+    format = "file",
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_highmem"))
+  ),
+  # ============================================================================
+  # Stage 7b: ExWAS Male (DEPENDS ON exposure_rollup_complete)
+  # ============================================================================
+  tar_target(
+    name = exwas_male,
+    command = {
+      exposure_rollup_complete
+      system("Rscript r/06_ewas_enhanced.R male")
+      fs::path(paths$gold,"exwas_male.parquet")
+    },
+    format = "file",
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_highmem"))
+  ),
+
+  # ============================================================================
+  # Stage 7c: ExWAS Female (DEPENDS On exposure_rollup_complete)
+  # ============================================================================
+  tar_target(
+    name = exwas_female,
+    command = {
+      exposure_rollup_complete
+      system("Rscript r/06_ewas_enhanced.R female")
+      fs::path(paths$gold,"exwas_female.parquet")
+    },
+    format = "file",
+    resources = tar_resources(
+      crew = tar_resources_crew(controller = "controller_highmem"))
+  ),
+
+  # ============================================================================
+  # Stage 8: Combine Results (DEPENDS ON all 3 ExWAS targets)
+  # ============================================================================
+  tar_target(
+    name = exwas_combined,
+    command = {
+      exwas_overall  # ← DEPENDENCY 1
+      exwas_male     # ← DEPENDENCY 2
+      exwas_female   # ← DEPENDENCY 3
+      library(arrow)
+      library(dplyr)
+
+      # FIX: Use actual file paths, not target names
+      overall_file <- fs::path(paths$gold, "exwas_all.parquet")
+      male_file <- fs::path(paths$gold, "exwas_male.parquet")
+      female_file <- fs::path(paths$gold, "exwas_female.parquet")
+
+      overall <- if (file.exists(overall_file)) {
+        arrow::read_parquet(overall_file)
+      } else NULL
+
+      male <- if (file.exists(male_file)) {
+        arrow::read_parquet(male_file)
+      } else NULL
+
+      female <- if (file.exists(female_file)) {
+        arrow::read_parquet(female_file)
+      } else NULL
+
+      all_results <- dplyr::bind_rows(overall, male, female) %>%
+        dplyr::arrange(p_value)
+
+      arrow::write_parquet(all_results,
+                           fs::path(paths$gold, "exwas_combined_results.parquet"),
+                           compression = 'snappy')
+
+      fs::path(paths$gold, "exwas_combined_results.parquet")
+    },
+    format = "file",
+    deployment = "main")
+  ,
+  # ============================================================================
+  # Stage 09: Final Report (DEPENDS ON exwas_combined)
+  # ============================================================================
+  tar_target(
+    name = final_report,
+    command = {
+      exwas_combined  # ← EXPLICIT DEPENDENCY
+
+      library(arrow)
+      library(dplyr)
+
+      results <- arrow::read_parquet(fs::path(paths$gold, "exwas_combined_results.parquet"))
+
+      summary <- list(
+        total_tests = nrow(results),
+        sig_p05 = sum(results$p_value < 0.05, na.rm = TRUE),
+        sig_fdr = sum(results$p.adj.fdr < 0.05, na.rm = TRUE),
+        sig_bonf = sum(results$p.adj.bonferroni < 0.05, na.rm = TRUE),
+        by_model = results %>%
+          dplyr::group_by(model_spec_id) %>%
+          dplyr::summarise(
+            n_tests = dplyr::n(),
+            n_sig_fdr = sum(p.adj.fdr < 0.05, na.rm = TRUE),
+            .groups = "drop"
+          )
+      )
+
+      saveRDS(summary, fs::path(paths$gold,"exwas_summary.rds"))
+
+      cat("\n=== PIPELINE COMPLETE ===\n")
+      cat("Total tests:", summary$total_tests, "\n")
+      cat("Significant (FDR<0.05):", summary$sig_fdr, "\n\n")
+      print(summary$by_model)
+
+      fs::path(paths$gold,"exwas_summary.rds")
+    },
+    format = "file",
+    deployment = "main"
+  )

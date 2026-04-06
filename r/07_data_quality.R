@@ -430,29 +430,29 @@ write_dataset(
 )
 
 # Update person table to only include people with remaining visits
-cat("Updating person table...\n")
-persons_clean <- visits_clean %>%
-  group_by(person_id) %>%
-  summarise(
-    first_visit = min(admit_date, na.rm = TRUE),
-    last_visit = max(admit_date, na.rm = TRUE),
-    n_visits = n(),
-    age = first(na.omit(age)),
-    female = first(na.omit(female)),
-    race = first(na.omit(race)),
-    .groups = "drop"
-  )
-
-write_dataset(
-  persons_clean,
-  path(paths$silver, "person_clean"),
-  format = "parquet",
-  existing_data_behavior = "overwrite",
-  compression = 'snappy'
-)
+# cat("Updating person table...\n")
+# persons_clean <- visits_clean %>%
+#   group_by(person_id) %>%
+#   summarise(
+#     first_visit = min(admit_date, na.rm = TRUE),
+#     last_visit = max(admit_date, na.rm = TRUE),
+#     n_visits = n(),
+#     age = first(na.omit(age)),
+#     female = first(na.omit(female)),
+#     race = first(na.omit(race)),
+#     .groups = "drop"
+#   )
+# 
+# write_dataset(
+#   persons_clean,
+#   path(paths$silver, "person_clean"),
+#   format = "parquet",
+#   existing_data_behavior = "overwrite",
+#   compression = 'snappy'
+# )
 
 cat("✓ Cleaned data saved:\n")
 cat("  - ", path(paths$silver, "visit_clean"), "\n")
-cat("  - ", path(paths$silver, "person_clean"), "\n")
+# cat("  - ", path(paths$silver, "person_clean"), "\n")
 
 cat("\n✓ Quality checks and cleaning complete\n")
