@@ -138,7 +138,7 @@ list(
     command = {
       bronze_files
       source(here::here("r", "01_hcup_silver.R"))
-      check_file_exists(fs::path(paths$silver,"visit"))
+      check_file_exists(fs::path_abs(fs::path(paths$silver, "visit")))
     },
     format = "file",
     deployment = "main"
@@ -155,7 +155,7 @@ list(
     command = {
       silver_layer
       source(here::here("r", "015_geocode_enrich.R"))
-      check_file_exists(fs::path(paths$silver,"visit"))
+      check_file_exists(fs::path_abs(fs::path(paths$silver,"visit")))
     },
     format = "file",
     deployment = "main"
@@ -172,7 +172,7 @@ list(
     command = {
       geocoded_visits
       source(here::here("r", "07_data_quality.R"))
-      check_file_exists(fs::path(paths$silver,"visit_clean")) # ← Check for cleaned data
+      check_file_exists(fs::path_abs(fs::path(paths$silver,"visit_clean")))
     },
     format = "file",
     deployment = "main"
@@ -186,7 +186,7 @@ list(
     command = {
       qc_and_clean
       source(here::here("r", "04_person_monthV2.R"))
-      check_file_exists(fs::path(paths$gold,"person_month"))
+      check_file_exists(fs::path_abs(fs::path(paths$gold,"person_month")))
     },
     format = "file",
     resources = tar_resources(
@@ -202,7 +202,7 @@ list(
     command = {
       person_month_cohort
       source(here::here("r", "02_dataverse_exposures.R"))
-      check_file_exists(fs::path(paths$gold,"exposures_monthly"))
+      check_file_exists(fs::path_abs(fs::path(paths$gold,"exposures_monthly")))
     },
     format = "file",
     deployment = "main"
@@ -218,7 +218,7 @@ list(
       person_month_cohort
       exposures_downloaded
       source(here::here("r", "05_join_exposures.R"))
-      check_file_exists(fs::path(paths$gold,"person_month_exposures"))
+      check_file_exists(fs::path_abs(fs::path(paths$gold,"person_month_exposures")))
     },
     format = "file",
     deployment = "main"
@@ -232,7 +232,7 @@ list(
     command = {
       joined_data
       source(here::here("r", "03_exposure_rollup.R"))
-      check_file_exists(fs::path(paths$gold,"exposure_rollup"))
+      check_file_exists(fs::path_abs(fs::path(paths$gold,"exposure_rollup")))
     },
     format = "file",
     deployment = "main"
