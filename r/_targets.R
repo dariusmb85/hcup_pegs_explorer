@@ -8,46 +8,50 @@ options(repos = c(CRAN = "https://cloud.r-project.org/"))
 source("r/00_env.R")
 
 # ==============================================================================
-# SLURM Controllers
-# Note: name= and launch_max= are deprecated; use seconds_idle instead
+# SLURM Controllers (crew.cluster >= 0.4.0 API)
+# SLURM-specific args now go in options_cluster = crew_options_slurm()
 # ==============================================================================
 
 controller_normal <- crew.cluster::crew_controller_slurm(
-  workers                        = 4,
-  seconds_interval               = 30,
-  seconds_idle                   = 300,        # workers shut down after 5 min idle
-  seconds_launch                 = 86400,
-  reset_globals                  = TRUE,
-  reset_packages                 = TRUE,
-  reset_options                  = FALSE,
-  garbage_collection             = TRUE,
-  verbose                        = FALSE,
-  slurm_log_output               = "logs/slurm_normal_%j.out",
-  slurm_log_error                = "logs/slurm_normal_%j.err",
-  slurm_partition                = "highmem",
-  slurm_cpus_per_task            = 4,
-  slurm_memory_gigabytes_per_cpu = 12,
-  slurm_time_minutes             = 240,
-  script_lines                   = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
+  workers                    = 4,
+  seconds_interval           = 30,
+  seconds_idle               = 300,
+  seconds_launch             = 86400,
+  reset_globals              = TRUE,
+  reset_packages             = TRUE,
+  reset_options              = FALSE,
+  garbage_collection         = TRUE,
+  options_cluster            = crew.cluster::crew_options_slurm(
+    verbose                  = FALSE,
+    script_lines             = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+    log_output               = "logs/slurm_normal_%j.out",
+    log_error                = "logs/slurm_normal_%j.err",
+    partition                = "highmem",
+    cpus_per_task            = 4,
+    memory_gigabytes_per_cpu = 12,
+    time_minutes             = 240
+  )
 )
 
 controller_highmem <- crew.cluster::crew_controller_slurm(
-  workers                        = 3,
-  seconds_interval               = 30,
-  seconds_idle                   = 300,
-  seconds_launch                 = 86400,
-  reset_globals                  = TRUE,
-  reset_packages                 = TRUE,
-  reset_options                  = FALSE,
-  garbage_collection             = TRUE,
-  verbose                        = FALSE,
-  slurm_log_output               = "logs/slurm_highmem_%j.out",
-  slurm_log_error                = "logs/slurm_highmem_%j.err",
-  slurm_partition                = "highmem",
-  slurm_cpus_per_task            = 10,
-  slurm_memory_gigabytes_per_cpu = 12,
-  slurm_time_minutes             = 720,
-  script_lines                   = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
+  workers                    = 3,
+  seconds_interval           = 30,
+  seconds_idle               = 300,
+  seconds_launch             = 86400,
+  reset_globals              = TRUE,
+  reset_packages             = TRUE,
+  reset_options              = FALSE,
+  garbage_collection         = TRUE,
+  options_cluster            = crew.cluster::crew_options_slurm(
+    verbose                  = FALSE,
+    script_lines             = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+    log_output               = "logs/slurm_highmem_%j.out",
+    log_error                = "logs/slurm_highmem_%j.err",
+    partition                = "highmem",
+    cpus_per_task            = 10,
+    memory_gigabytes_per_cpu = 12,
+    time_minutes             = 720
+  )
 )
 
 # ==============================================================================
