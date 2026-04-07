@@ -1,65 +1,54 @@
 # _targets.R - HCUP PEGS Explorer Pipeline
 library(targets)
 library(tarchetypes)
+library(crew)
+library(crew.cluster)
 
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
 source("r/00_env.R")
 
 # ==============================================================================
-# SLURM Controller Setup
+# SLURM Controllers
+# Note: name= and launch_max= are deprecated; use seconds_idle instead
 # ==============================================================================
 
-USE_HPC <- Sys.getenv("USE_HPC", "FALSE") == "TRUE"
+controller_normal <- crew.cluster::crew_controller_slurm(
+  workers                        = 4,
+  seconds_interval               = 30,
+  seconds_idle                   = 300,        # workers shut down after 5 min idle
+  seconds_launch                 = 86400,
+  reset_globals                  = TRUE,
+  reset_packages                 = TRUE,
+  reset_options                  = FALSE,
+  garbage_collection             = TRUE,
+  verbose                        = FALSE,
+  slurm_log_output               = "logs/slurm_normal_%j.out",
+  slurm_log_error                = "logs/slurm_normal_%j.err",
+  slurm_partition                = "highmem",
+  slurm_cpus_per_task            = 4,
+  slurm_memory_gigabytes_per_cpu = 12,
+  slurm_time_minutes             = 240,
+  script_lines                   = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
+)
 
-if (USE_HPC) {
-  library(crew)
-  library(crew.cluster)
-
-  # Standard compute jobs (geocoding, data processing)
-  controller_normal <- crew.cluster::crew_controller_slurm(
-    workers              = 4,
-    seconds_idle         = 300,          # replaces launch_max: workers shut down after 5min idle
-    seconds_interval     = 30,
-    reset_globals        = TRUE,         # moved from launcher to controller
-    reset_packages       = TRUE,
-    reset_options        = FALSE,
-    garbage_collection   = TRUE,
-    slurm_log_output     = "logs/slurm_normal_%j.out",
-    slurm_log_error      = "logs/slurm_normal_%j.err",
-    slurm_partition      = "highmem",
-    slurm_cpus_per_task  = 4,
-    slurm_memory_gigabytes_per_cpu = 12,
-    slurm_time_minutes   = 240,
-    script_lines         = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
-    verbose              = FALSE
-  )
-
-  # High-memory controller for ExWAS / person-month
-  controller_highmem <- crew.cluster::crew_controller_slurm(
-    workers              = 3,
-    seconds_idle         = 300,
-    seconds_interval     = 30,
-    reset_globals        = TRUE,
-    reset_packages       = TRUE,
-    reset_options        = FALSE,
-    garbage_collection   = TRUE,
-    slurm_log_output     = "logs/slurm_highmem_%j.out",
-    slurm_log_error      = "logs/slurm_highmem_%j.err",
-    slurm_partition      = "highmem",
-    slurm_cpus_per_task  = 10,
-    slurm_memory_gigabytes_per_cpu = 12,
-    slurm_time_minutes   = 720,
-    script_lines         = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
-    verbose              = FALSE
-  )
-
-  tar_option_set(
-    controller = crew::crew_controller_group(
-      controller_normal,
-      controller_highmem
-    )
-  )
-}
+controller_highmem <- crew.cluster::crew_controller_slurm(
+  workers                        = 3,
+  seconds_interval               = 30,
+  seconds_idle                   = 300,
+  seconds_launch                 = 86400,
+  reset_globals                  = TRUE,
+  reset_packages                 = TRUE,
+  reset_options                  = FALSE,
+  garbage_collection             = TRUE,
+  verbose                        = FALSE,
+  slurm_log_output               = "logs/slurm_highmem_%j.out",
+  slurm_log_error                = "logs/slurm_highmem_%j.err",
+  slurm_partition                = "highmem",
+  slurm_cpus_per_task            = 10,
+  slurm_memory_gigabytes_per_cpu = 12,
+  slurm_time_minutes             = 720,
+  script_lines                   = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"
+)
 
 # ==============================================================================
 # Global Options
@@ -77,20 +66,25 @@ tar_option_set(
   storage            = "worker",
   retrieval          = "worker",
   deployment         = "worker",
+  controller         = crew::crew_controller_group(
+    controller_normal,
+    controller_highmem
+  ),
   resources = tar_resources(
     crew = tar_resources_crew(controller = "controller_normal")
   )
 )
 
 # ==============================================================================
-# Helper Functions
+# Helper
 # ==============================================================================
 
 check_file_exists <- function(path) {
-  if (dir.exists(path) || file.exists(path)) {
-    return(as.character(fs::path_abs(path)))   # always return absolute path
+  p <- as.character(fs::path_abs(path))
+  if (dir.exists(p) || file.exists(p)) {
+    return(p)
   } else {
-    stop("Path does not exist: ", path)
+    stop("Path does not exist: ", p)
   }
 }
 
@@ -101,7 +95,7 @@ check_file_exists <- function(path) {
 list(
 
   # --------------------------------------------------------------------------
-  # Stage 0: Harmonize 2015 quarterly files
+  # Stage 0a: Harmonize 2015 quarterly files
   # --------------------------------------------------------------------------
   tar_target(
     name = harmonize_2015,
@@ -109,7 +103,7 @@ list(
       source(here::here("r", "harmonization_2015.R"))
       list.files(
         paths$bronze,
-        pattern   = "_2015_COMBINED\\.parquet$",
+        pattern    = "_2015_COMBINED\\.parquet$",
         full.names = TRUE
       )
     },
@@ -126,8 +120,8 @@ list(
       harmonize_2015
       list.files(
         paths$bronze,
-        pattern   = "\\.parquet$",
-        recursive = TRUE,
+        pattern    = "\\.parquet$",
+        recursive  = TRUE,
         full.names = TRUE
       ) %>%
         .[!grepl("2015.*(q1q3|q4)", .)]
@@ -137,7 +131,7 @@ list(
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 1: Silver layer
+  # Stage 1: Silver layer  (heavy I/O — main process)
   # --------------------------------------------------------------------------
   tar_target(
     name = silver_layer,
@@ -151,7 +145,7 @@ list(
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 2: Geocoding
+  # Stage 2: Geocoding  (heavy I/O — main process)
   # --------------------------------------------------------------------------
   tar_target(
     name = geocoded_visits,
@@ -165,7 +159,7 @@ list(
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 3: QC + cleaning  →  visit_clean
+  # Stage 3: QC + cleaning  (heavy I/O — main process)
   # --------------------------------------------------------------------------
   tar_target(
     name = qc_and_clean,
@@ -179,7 +173,7 @@ list(
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 4: Person-month cohort  (high-memory worker)
+  # Stage 4: Person-month cohort  (high-memory SLURM worker)
   # --------------------------------------------------------------------------
   tar_target(
     name = person_month_cohort,
@@ -195,7 +189,7 @@ list(
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 5: Download exposures
+  # Stage 5: Download exposures  (normal worker — network bound)
   # --------------------------------------------------------------------------
   tar_target(
     name = exposures_downloaded,
@@ -204,12 +198,11 @@ list(
       source(here::here("r", "02_dataverse_exposures.R"))
       check_file_exists(fs::path(paths$gold, "exposures_monthly"))
     },
-    format     = "file",
-    deployment = "main"
+    format = "file"
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 6: Join exposures
+  # Stage 6: Join exposures  (normal worker)
   # --------------------------------------------------------------------------
   tar_target(
     name = joined_data,
@@ -219,12 +212,11 @@ list(
       source(here::here("r", "05_join_exposures.R"))
       check_file_exists(fs::path(paths$gold, "person_month_exposures"))
     },
-    format     = "file",
-    deployment = "main"
+    format = "file"
   ),
 
   # --------------------------------------------------------------------------
-  # Stage 7: Exposure rollup
+  # Stage 7: Exposure rollup  (normal worker)
   # --------------------------------------------------------------------------
   tar_target(
     name = exposure_rollup_complete,
@@ -233,7 +225,6 @@ list(
       source(here::here("r", "03_exposure_rollup.R"))
       check_file_exists(fs::path(paths$gold, "exposure_rollup"))
     },
-    format     = "file",
-    deployment = "main"
+    format = "file"
   )
 )
