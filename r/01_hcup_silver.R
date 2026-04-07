@@ -17,7 +17,7 @@ bronze_files <- list.files(
   .[!grepl("2015.*q1q3", .)]
 
 # Load PheCode mapping and create lookup
-phecode_map <- read_csv("phecodes_cm_rolled.csv")
+phecode_map <- read_csv("phecodes_cm_rolled.csv", show_col_types = FALSE)
 phecode_lookup <- setNames(phecode_map$phecode, phecode_map$code)
 
 # format_icd_for_phecode function
