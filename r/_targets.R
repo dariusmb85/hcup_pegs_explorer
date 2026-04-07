@@ -2,9 +2,9 @@
 library(targets)
 library(tarchetypes)
 
-# Set CRAN mirror to fix package installation errors
 options(repos = c(CRAN = "https://cloud.r-project.org/"))
 source("r/00_env.R")
+
 # ==============================================================================
 # SLURM Controller Setup
 # ==============================================================================
@@ -17,35 +17,42 @@ if (USE_HPC) {
 
   # Standard compute jobs (geocoding, data processing)
   controller_normal <- crew.cluster::crew_controller_slurm(
-    name = "controller_normal",
-    workers = 4,
-    seconds_interval = 30,
-    slurm_log_output = "logs/slurm_normal_%j.out",
-    slurm_log_error = "logs/slurm_normal_%j.err",
-    slurm_partition = "highmem",  # Changed: Use highmem as default
-    slurm_cpus_per_task = 4,
-    slurm_memory_gigabytes_per_cpu = 12,  # Changed: Use proper memory specification
-    slurm_time_minutes = 240,
-    script_lines = ("export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"),
-    verbose = FALSE
+    workers              = 4,
+    seconds_idle         = 300,          # replaces launch_max: workers shut down after 5min idle
+    seconds_interval     = 30,
+    reset_globals        = TRUE,         # moved from launcher to controller
+    reset_packages       = TRUE,
+    reset_options        = FALSE,
+    garbage_collection   = TRUE,
+    slurm_log_output     = "logs/slurm_normal_%j.out",
+    slurm_log_error      = "logs/slurm_normal_%j.err",
+    slurm_partition      = "highmem",
+    slurm_cpus_per_task  = 4,
+    slurm_memory_gigabytes_per_cpu = 12,
+    slurm_time_minutes   = 240,
+    script_lines         = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+    verbose              = FALSE
   )
 
-  # High-memory controller for ExWAS
+  # High-memory controller for ExWAS / person-month
   controller_highmem <- crew.cluster::crew_controller_slurm(
-    name = "controller_highmem",
-    workers = 3,
-    seconds_interval = 30,
-    slurm_log_output = "logs/slurm_highmem_%j.out",
-    slurm_log_error = "logs/slurm_highmem_%j.err",
-    slurm_partition = "highmem",
-    slurm_cpus_per_task = 10,  # Changed: Even number, follows 12GB/CPU rule
-    slurm_memory_gigabytes_per_cpu = 12,  # Changed: Use default highmem ratio
-    slurm_time_minutes = 720,
-    script_lines = ("export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"),
-    verbose = FALSE
+    workers              = 3,
+    seconds_idle         = 300,
+    seconds_interval     = 30,
+    reset_globals        = TRUE,
+    reset_packages       = TRUE,
+    reset_options        = FALSE,
+    garbage_collection   = TRUE,
+    slurm_log_output     = "logs/slurm_highmem_%j.out",
+    slurm_log_error      = "logs/slurm_highmem_%j.err",
+    slurm_partition      = "highmem",
+    slurm_cpus_per_task  = 10,
+    slurm_memory_gigabytes_per_cpu = 12,
+    slurm_time_minutes   = 720,
+    script_lines         = "export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3",
+    verbose              = FALSE
   )
 
-  # Set controller group
   tar_option_set(
     controller = crew::crew_controller_group(
       controller_normal,
@@ -63,20 +70,16 @@ tar_option_set(
     "arrow", "dplyr", "tidyr", "yaml", "here", "lubridate",
     "broom", "stringr", "fs", "glue", "httr", "jsonlite", "digest"
   ),
-  format = "file",  # ← BETTER: Track file paths, not R objects
-  memory = "transient",
+  format             = "file",
+  memory             = "transient",
   garbage_collection = TRUE,
-  error = "continue",  # Continue even if one target fails
-  storage = "worker",
-  retrieval = "worker",
-  deployment = "worker",
+  error              = "continue",
+  storage            = "worker",
+  retrieval          = "worker",
+  deployment         = "worker",
   resources = tar_resources(
-    crew = tar_resources_crew(
-      controller = "controller_normal"  # Default controller
-    )
-  ),
-  debug = "logs/targets_debug.txt",
-  workspaces = "logs/targets_workspaces/"
+    crew = tar_resources_crew(controller = "controller_normal")
+  )
 )
 
 # ==============================================================================
@@ -85,156 +88,152 @@ tar_option_set(
 
 check_file_exists <- function(path) {
   if (dir.exists(path) || file.exists(path)) {
-    return(path)
+    return(as.character(fs::path_abs(path)))   # always return absolute path
   } else {
     stop("Path does not exist: ", path)
   }
 }
 
 # ==============================================================================
-# Pipeline Definition with EXPLICIT DEPENDENCIES
+# Pipeline
 # ==============================================================================
 
 list(
-  # ============================================================================
-  # Stage 0: Pre-check files
-  # ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Stage 0: Harmonize 2015 quarterly files
+  # --------------------------------------------------------------------------
   tar_target(
     name = harmonize_2015,
     command = {
       source(here::here("r", "harmonization_2015.R"))
-
-      # Return paths to all combined files that were created
       list.files(
         paths$bronze,
-        pattern = "_2015_COMBINED\\.parquet$",
+        pattern   = "_2015_COMBINED\\.parquet$",
         full.names = TRUE
       )
     },
-    format = "file"
+    format     = "file",
+    deployment = "main"
   ),
 
+  # --------------------------------------------------------------------------
+  # Stage 0b: Index all bronze parquet files
+  # --------------------------------------------------------------------------
   tar_target(
     name = bronze_files,
     command = {
       harmonize_2015
-
       list.files(
         paths$bronze,
-        pattern = "\\.parquet$",
+        pattern   = "\\.parquet$",
         recursive = TRUE,
         full.names = TRUE
       ) %>%
-        # Exclude 2015 quarterly files, keep combined
         .[!grepl("2015.*(q1q3|q4)", .)]
     },
-    format = "file"
+    format     = "file",
+    deployment = "main"
   ),
-  # ============================================================================
-  # Stage 1: Silver Layer
-  # ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Stage 1: Silver layer
+  # --------------------------------------------------------------------------
   tar_target(
     name = silver_layer,
     command = {
       bronze_files
       source(here::here("r", "01_hcup_silver.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$silver, "visit")))
+      check_file_exists(fs::path(paths$silver, "visit"))
     },
-    format = "file",
+    format     = "file",
     deployment = "main"
-    #resources = tar_resources(
-    #  crew = tar_resources_crew(controller = "controller_normal")
-    #)
   ),
 
-  # ============================================================================
-  # Stage 2: Geocoding (DEPENDS ON silver_layer)
-  # ============================================================================
+  # --------------------------------------------------------------------------
+  # Stage 2: Geocoding
+  # --------------------------------------------------------------------------
   tar_target(
     name = geocoded_visits,
     command = {
       silver_layer
       source(here::here("r", "015_geocode_enrich.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$silver,"visit")))
+      check_file_exists(fs::path(paths$silver, "visit"))
     },
-    format = "file",
+    format     = "file",
     deployment = "main"
-    #resources = tar_resources(
-    #  crew = tar_resources_crew(controller = "controller_normal")
-    #)
   ),
 
-  # ============================================================================
-  # Stage QA + CLEANING (creates visit_clean)
-  # ============================================================================
+  # --------------------------------------------------------------------------
+  # Stage 3: QC + cleaning  →  visit_clean
+  # --------------------------------------------------------------------------
   tar_target(
     name = qc_and_clean,
     command = {
       geocoded_visits
       source(here::here("r", "07_data_quality.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$silver,"visit_clean")))
+      check_file_exists(fs::path(paths$silver, "visit_clean"))
     },
-    format = "file",
+    format     = "file",
     deployment = "main"
   ),
 
-  # ============================================================================
-  # Stage 3: Person-Month Cohort (DEPENDS ON geocoded_visits)
-  # ============================================================================
+  # --------------------------------------------------------------------------
+  # Stage 4: Person-month cohort  (high-memory worker)
+  # --------------------------------------------------------------------------
   tar_target(
     name = person_month_cohort,
     command = {
       qc_and_clean
       source(here::here("r", "04_person_monthV2.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"person_month")))
+      check_file_exists(fs::path(paths$gold, "person_month"))
     },
-    format = "file",
+    format    = "file",
     resources = tar_resources(
       crew = tar_resources_crew(controller = "controller_highmem")
     )
   ),
 
-  # ============================================================================
-  # Stage 4: Download Exposures
-  # ============================================================================
+  # --------------------------------------------------------------------------
+  # Stage 5: Download exposures
+  # --------------------------------------------------------------------------
   tar_target(
     name = exposures_downloaded,
     command = {
       person_month_cohort
       source(here::here("r", "02_dataverse_exposures.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"exposures_monthly")))
+      check_file_exists(fs::path(paths$gold, "exposures_monthly"))
     },
-    format = "file",
+    format     = "file",
     deployment = "main"
   ),
 
-
-  # ============================================================================
-  # Stage 5:Join Exposures (DEPENDS ON person_month_cohort + exposures_downloaded)
-  # ============================================================================
+  # --------------------------------------------------------------------------
+  # Stage 6: Join exposures
+  # --------------------------------------------------------------------------
   tar_target(
     name = joined_data,
     command = {
       person_month_cohort
       exposures_downloaded
       source(here::here("r", "05_join_exposures.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"person_month_exposures")))
+      check_file_exists(fs::path(paths$gold, "person_month_exposures"))
     },
-    format = "file",
+    format     = "file",
     deployment = "main"
   ),
 
-  # ============================================================================
-  # Stage 6: Exposure Rollup (DEPENDS ON joined_data)
-  # ============================================================================
+  # --------------------------------------------------------------------------
+  # Stage 7: Exposure rollup
+  # --------------------------------------------------------------------------
   tar_target(
     name = exposure_rollup_complete,
     command = {
       joined_data
       source(here::here("r", "03_exposure_rollup.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"exposure_rollup")))
+      check_file_exists(fs::path(paths$gold, "exposure_rollup"))
     },
-    format = "file",
+    format     = "file",
     deployment = "main"
   )
 )
