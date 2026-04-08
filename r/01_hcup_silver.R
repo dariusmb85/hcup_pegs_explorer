@@ -75,7 +75,7 @@ paste_rows <- function(df, cols) {
   })
 }
 
-normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
+normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD"), log_msg = cat) {
   db_type <- match.arg(db_type)
   m       <- modifyList(map$defaults, map[[db_type]] %||% list())
 
@@ -94,14 +94,14 @@ normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
 
   if (is.null(person_key)) {
     person_key <- visit_id
-    cat(" [X] No person linkage found, using visit_id as person_key\n")
+    log_msg(" [X] No person linkage found, using visit_id as person_key\n")
   } else {
     n_before   <- sum(!is.na(person_key))
     person_key <- ifelse(is.na(person_key), visit_id, person_key)
     n_after    <- sum(!is.na(person_key))
-    cat("  ✓ Person linkage found:", n_before, "/", length(person_key),
+    log_msg("  ✓ Person linkage found:", n_before, "/", length(person_key),
         "(", round(100 * n_before / length(person_key), 1), "%)\n")
-    cat("  ✓ After fallback:", n_after, "/", length(person_key), "\n")
+    log_msg("  ✓ After fallback:", n_after, "/", length(person_key), "\n")
   }
 
   tibble::tibble(
