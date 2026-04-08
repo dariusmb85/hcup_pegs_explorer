@@ -29,6 +29,8 @@ pkgs <- c(
   "dplyr",
   "tidyr",
   "purrr",
+  "furrr",
+  "future",
   "stringr",
   "lubridate",
   "jsonlite",
