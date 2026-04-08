@@ -1,240 +1,220 @@
-# _targets.R - HCUP PEGS Explorer Pipeline
-library(targets)
-library(tarchetypes)
+source(here::here("r", "00_env.R"))
 
-# Set CRAN mirror to fix package installation errors
-options(repos = c(CRAN = "https://cloud.r-project.org/"))
-source("r/00_env.R")
-# ==============================================================================
-# SLURM Controller Setup
-# ==============================================================================
-
-USE_HPC <- Sys.getenv("USE_HPC", "FALSE") == "TRUE"
-
-if (USE_HPC) {
-  library(crew)
-  library(crew.cluster)
-
-  # Standard compute jobs (geocoding, data processing)
-  controller_normal <- crew.cluster::crew_controller_slurm(
-    name = "controller_normal",
-    workers = 4,
-    seconds_interval = 30,
-    slurm_log_output = "logs/slurm_normal_%j.out",
-    slurm_log_error = "logs/slurm_normal_%j.err",
-    slurm_partition = "highmem",  # Changed: Use highmem as default
-    slurm_cpus_per_task = 4,
-    slurm_memory_gigabytes_per_cpu = 12,  # Changed: Use proper memory specification
-    slurm_time_minutes = 240,
-    script_lines = ("export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"),
-    verbose = FALSE
-  )
-
-  # High-memory controller for ExWAS
-  controller_highmem <- crew.cluster::crew_controller_slurm(
-    name = "controller_highmem",
-    workers = 3,
-    seconds_interval = 30,
-    slurm_log_output = "logs/slurm_highmem_%j.out",
-    slurm_log_error = "logs/slurm_highmem_%j.err",
-    slurm_partition = "highmem",
-    slurm_cpus_per_task = 10,  # Changed: Even number, follows 12GB/CPU rule
-    slurm_memory_gigabytes_per_cpu = 12,  # Changed: Use default highmem ratio
-    slurm_time_minutes = 720,
-    script_lines = ("export R_LIBS_USER=~/R/x86_64-pc-linux-gnu-library/4.3"),
-    verbose = FALSE
-  )
-
-  # Set controller group
-  tar_option_set(
-    controller = crew::crew_controller_group(
-      controller_normal,
-      controller_highmem
-    )
-  )
+`%||%` <- function(x, y) {
+  if (!is.null(x)) x else y
 }
 
-# ==============================================================================
-# Global Options
-# ==============================================================================
+map <- yaml::read_yaml(here::here("config", "hcup_map.yaml"))$mappings
 
-tar_option_set(
-  packages = c(
-    "arrow", "dplyr", "tidyr", "yaml", "here", "lubridate",
-    "broom", "stringr", "fs", "glue", "httr", "jsonlite", "digest"
-  ),
-  format = "file",  # ← BETTER: Track file paths, not R objects
-  memory = "transient",
-  garbage_collection = TRUE,
-  error = "continue",  # Continue even if one target fails
-  storage = "worker",
-  retrieval = "worker",
-  deployment = "worker",
-  resources = tar_resources(
-    crew = tar_resources_crew(
-      controller = "controller_normal"  # Default controller
-    )
-  ),
-  debug = "logs/targets_debug.txt",
-  workspaces = "logs/targets_workspaces/"
-)
+bronze_files <- list.files(
+  paths$bronze,
+  pattern = "\\.parquet$",
+  recursive = TRUE,
+  full.names = TRUE
+) %>%
+  # Exclude 2015 quarterly files, keep the combined file
+  .[!grepl("2015.*q[1-4]", .)] %>%
+  .[!grepl("2015.*q1q3", .)]
 
-# ==============================================================================
-# Helper Functions
-# ==============================================================================
+# Load PheCode mapping and create lookup
+phecode_map <- read_csv("phecodes_cm_rolled.csv", show_col_types = FALSE)
+phecode_lookup <- setNames(phecode_map$phecode, phecode_map$code)
 
-check_file_exists <- function(path) {
-  if (dir.exists(path) || file.exists(path)) {
-    return(path)
-  } else {
-    stop("Path does not exist: ", path)
+# format_icd_for_phecode function
+format_icd_for_phecode <- function(code) {
+  if (is.na(code) || code == "") return(NA_character_)
+
+  # ICD-9 E-codes: decimal after 4th position (check BEFORE general letters)
+  if (grepl("^E[0-9]", code)) {
+    if (nchar(code) <= 4) return(code)
+    if (nchar(code) > 4) {
+      return(paste0(substr(code, 1, 4), ".", substr(code, 5, nchar(code))))
+    }
   }
+
+  # ICD-9 V-codes: decimal after 3rd position
+  if (grepl("^V[0-9]", code)) {
+    if (nchar(code) <= 3) return(code)
+    if (nchar(code) > 3) {
+      return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
+    }
+  }
+
+  # ICD-10 detection: starts with letter (but not E or V followed by numbers)
+  if (grepl("^[A-Z]", code)) {
+    if (nchar(code) == 3) return(code)
+    if (nchar(code) > 3) {
+      return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
+    }
+  }
+
+  # ICD-9 numeric codes: decimal after 3rd position
+  if (grepl("^[0-9]+$", code)) {
+    if (nchar(code) == 3) return(code)
+    if (nchar(code) > 3) {
+      return(paste0(substr(code, 1, 3), ".", substr(code, 4, nchar(code))))
+    }
+  }
+
+  return(code)
 }
 
-# ==============================================================================
-# Pipeline Definition with EXPLICIT DEPENDENCIES
-# ==============================================================================
+stopifnot(length(bronze_files) > 0)
 
-list(
-  # ============================================================================
-  # Stage 0: Pre-check files
-  # ============================================================================
-  tar_target(
-    name = harmonize_2015,
-    command = {
-      source(here::here("r", "harmonization_2015.R"))
+read_one <- function(f) {
+  arrow::open_dataset(f) %>%
+    dplyr::collect()
+}
 
-      # Return paths to all combined files that were created
-      list.files(
-        paths$bronze,
-        pattern = "_2015_COMBINED\\.parquet$",
-        full.names = TRUE
+choose_first <- function(df, cands) {
+  cands <- cands[!is.na(cands)]
+
+  for (nm in cands) {
+    if (nm %in% names(df)) {
+      return(df[[nm]])
+    }
+  }
+
+  rep(NA_character_, nrow(df))
+}
+
+normalize_visit <- function(df, db_type = c("SID", "SEDD", "SASD")) {
+  db_type <- match.arg(db_type)
+  m <- modifyList(map$defaults, map[[db_type]] %||% list())
+
+  year   <- choose_first(df, m$year)
+  amonth <- choose_first(df, m$admit_month)
+  dmonth <- choose_first(df, m$discharge_month)
+
+  admit_date_month <- as.Date(sprintf("%04d-%02d-01", year, amonth))
+
+  discharge_date_month <- if (!is.null(dmonth)) {
+    as.Date(sprintf("%04d-%02d-01", year, dmonth))
+  } else {
+    NA
+  }
+
+  dx_cols <- names(df)[grepl(m$dx_all_regex, names(df))]
+  e_cols  <- names(df)[grepl(m$ecause_regex, names(df))]
+
+  person_key <- choose_first(df, m$person_key_candidates)
+
+  if (is.null(person_key)) {
+    # No person linkage variable exists at all
+    person_key <- choose_first(df, m$visit_id)
+    cat(" [X] No person linkage found, using visit_id as person_key\n")
+  } else {
+    # Person linkage exists (e.g., VisitLink)
+    # For visits with NA linkage, use visit_id as fallback for those rows only
+    visit_id <- choose_first(df, m$visit_id)
+
+    n_linked_before <- sum(!is.na(person_key))
+    person_key <- ifelse(is.na(person_key), visit_id, person_key)
+    n_linked_after <- sum(!is.na(person_key))
+
+    cat("  ✓ Person linkage found:", n_linked_before, "/", length(person_key),
+        "(", round(100 * n_linked_before / length(person_key), 1), "%)\n")
+    cat("  ✓ After fallback:", n_linked_after, "/", length(person_key), "\n")
+  }
+
+  out <- tibble::tibble(
+    visit_id          = choose_first(df, m$visit_id),
+    person_id = purrr::map_chr(format(person_key,
+                                      scientific = FALSE,
+                                      trim = TRUE), hash_id),
+    admit_date        = admit_date_month,
+    discharge_date    = discharge_date_month,
+    dx_primary        = choose_first(df, m$dx_primary),
+    dx_admit          = if (db_type == "SID") {
+      choose_first(df, m$dx_admitting_sid)
+    } else if (db_type != "SID") {
+      choose_first(df, m$dx_reason_sed_sasd)
+    } else {
+      NA_character_
+    },
+    dx_all            = apply(
+      df[dx_cols],
+      1,
+      function(r) paste0(na.omit(as.character(r)), collapse = ";")
+    ),
+    ecause_all        = if (length(e_cols)) {
+      apply(
+        df[e_cols],
+        1,
+        function(r) paste0(na.omit(as.character(r)), collapse = ";")
       )
+    } else {
+      NA_character_
     },
-    format = "file"
-  ),
-
-  tar_target(
-    name = bronze_files,
-    command = {
-      harmonize_2015
-
-      list.files(
-        paths$bronze,
-        pattern = "\\.parquet$",
-        recursive = TRUE,
-        full.names = TRUE
-      ) %>%
-        # Exclude 2015 quarterly files, keep combined
-        .[!grepl("2015.*(q1q3|q4)", .)]
-    },
-    format = "file"
-  ),
-  # ============================================================================
-  # Stage 1: Silver Layer
-  # ============================================================================
-  tar_target(
-    name = silver_layer,
-    command = {
-      bronze_files
-      source(here::here("r", "01_hcup_silver.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$silver, "visit")))
-    },
-    format = "file",
-    deployment = "main"
-    #resources = tar_resources(
-    #  crew = tar_resources_crew(controller = "controller_normal")
-    #)
-  ),
-
-  # ============================================================================
-  # Stage 2: Geocoding (DEPENDS ON silver_layer)
-  # ============================================================================
-  tar_target(
-    name = geocoded_visits,
-    command = {
-      silver_layer
-      source(here::here("r", "015_geocode_enrich.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$silver,"visit")))
-    },
-    format = "file",
-    deployment = "main"
-    #resources = tar_resources(
-    #  crew = tar_resources_crew(controller = "controller_normal")
-    #)
-  ),
-
-  # ============================================================================
-  # Stage QA + CLEANING (creates visit_clean)
-  # ============================================================================
-  tar_target(
-    name = qc_and_clean,
-    command = {
-      geocoded_visits
-      source(here::here("r", "07_data_quality.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$silver,"visit_clean")))
-    },
-    format = "file",
-    deployment = "main"
-  ),
-
-  # ============================================================================
-  # Stage 3: Person-Month Cohort (DEPENDS ON geocoded_visits)
-  # ============================================================================
-  tar_target(
-    name = person_month_cohort,
-    command = {
-      qc_and_clean
-      source(here::here("r", "04_person_monthV2.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"person_month")))
-    },
-    format = "file",
-    resources = tar_resources(
-      crew = tar_resources_crew(controller = "controller_highmem")
-    )
-  ),
-
-  # ============================================================================
-  # Stage 4: Download Exposures
-  # ============================================================================
-  tar_target(
-    name = exposures_downloaded,
-    command = {
-      person_month_cohort
-      source(here::here("r", "02_dataverse_exposures.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"exposures_monthly")))
-    },
-    format = "file",
-    deployment = "main"
-  ),
-
-
-  # ============================================================================
-  # Stage 5:Join Exposures (DEPENDS ON person_month_cohort + exposures_downloaded)
-  # ============================================================================
-  tar_target(
-    name = joined_data,
-    command = {
-      person_month_cohort
-      exposures_downloaded
-      source(here::here("r", "05_join_exposures.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"person_month_exposures")))
-    },
-    format = "file",
-    deployment = "main"
-  ),
-
-  # ============================================================================
-  # Stage 6: Exposure Rollup (DEPENDS ON joined_data)
-  # ============================================================================
-  tar_target(
-    name = exposure_rollup_complete,
-    command = {
-      joined_data
-      source(here::here("r", "03_exposure_rollup.R"))
-      check_file_exists(fs::path_abs(fs::path(paths$gold,"exposure_rollup")))
-    },
-    format = "file",
-    deployment = "main"
+    zip5              = substr(choose_first(df, m$zip5), 1, 5),
+    facility_state    = dplyr::coalesce(
+      choose_first(df, m$facility_state),
+      NA_character_
+    ),
+    facility_county   = dplyr::coalesce(
+      choose_first(df, m$facility_county_candidates),
+      NA_character_
+    ),
+    los_days          = suppressWarnings(
+      as.numeric(choose_first(df, m$los_days))
+    ),
+    duration_hours    = suppressWarnings(
+      as.numeric(choose_first(df, m$duration_hours))
+    ),
+    age = suppressWarnings(as.numeric(choose_first(df, c("AGE")))
+    ),
+    female = suppressWarnings(as.numeric(choose_first(df, c("FEMALE")))
+    ),
+    race = suppressWarnings(as.numeric(choose_first(df, c("RACE")))
+    ),
+    db_type = db_type
   )
-)
+
+  out
+}
+
+# Heuristic: infer DB type from path
+infer_type <- function(path) {
+  p <- tolower(path)
+
+  if (grepl("sedd", p)) {
+    return("SEDD")
+  }
+
+  if (grepl("sasd", p)) {
+    return("SASD")
+  }
+
+  "SID"
+}
+
+# Process files individually to avoid memory issues
+for (f in bronze_files) {
+  cat("Processing:", basename(f), "\n")
+
+  # Process individual file
+  df <- read_one(f)
+  visits <- normalize_visit(df, infer_type(f)) %>%
+    mutate(year = lubridate::year(admit_date)) %>%
+    mutate(dx_primary_phecode = phecode_lookup[sapply(dx_primary, format_icd_for_phecode)])
+
+  # Add secondary diagnosis PheCodes for THIS file
+  dx_cols <- names(visits)[grepl("^dx[0-9]+$", names(visits))]
+  for (col in dx_cols) {
+    new_col <- paste0(col, "_phecode")
+    visits[[new_col]] <- sapply(visits[[col]], function(icd) {
+      if (is.na(icd)) return(NA_character_)
+      phecode_match <- phecode_map$phecode[phecode_map$icd_code == icd][1]
+      if (length(phecode_match) > 0) phecode_match else NA_character_
+    })
+  }
+
+  # Write immediately to avoid memory accumulation
+  arrow::write_dataset(visits,
+                     fs::path(paths$silver, "visit"),
+                     partitioning = c("facility_state", "db_type", "year"),
+                     existing_data_behavior = "delete_matching",
+                     compression = "snappy")
+}
+
+cat("\n✓ Silver layer complete\n")
