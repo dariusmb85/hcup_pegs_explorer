@@ -13,6 +13,7 @@ source("r/00_env.R")
 # ==============================================================================
 
 controller_normal <- crew.cluster::crew_controller_slurm(
+  name                       = "controller_normal",
   workers                    = 4,
   seconds_interval           = 30,
   seconds_idle               = 300,
@@ -34,6 +35,7 @@ controller_normal <- crew.cluster::crew_controller_slurm(
 )
 
 controller_highmem <- crew.cluster::crew_controller_slurm(
+  name                       = "controller_highmem",
   workers                    = 3,
   seconds_interval           = 30,
   seconds_idle               = 300,
