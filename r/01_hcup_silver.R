@@ -157,12 +157,12 @@ process_one_file <- function(f, phecode_lookup, phecode_map, paths, map, hash_id
     )
 
   # Secondary dx phecode columns — vectorized per column
-  dx_cols <- names(df)[grepl("^(DX|I10_DX)[0-9]+$", names(df), ignore.case = TRUE)]
-  for (col in dx_cols) {
-    col_num <- gsub("[^0-9]", "", col)
-    new_col <- paste0("dx", col_num, "_phecode")
-    visits[[new_col]] <- phecode_lookup[format_icd_for_phecode_vec(df[[col]])]
-  }
+  # dx_cols <- names(df)[grepl("^(DX|I10_DX)[0-9]+$", names(df), ignore.case = TRUE)]
+  # for (col in dx_cols) {
+  #   col_num <- gsub("[^0-9]", "", col)
+  #   new_col <- paste0("dx", col_num, "_phecode")
+  #   visits[[new_col]] <- phecode_lookup[format_icd_for_phecode_vec(df[[col]])]
+  # }
 
   arrow::write_dataset(
     visits,
