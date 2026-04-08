@@ -140,7 +140,7 @@ main <- function() {
 
     # Write this state's data — appending to the partitioned dataset
     message(glue("  Writing {scales::comma(nrow(pm_state))} person-months..."))
-    write_parquet_ds(
+    arrow::write_dataset(
       pm_state,
       path(paths$gold, "person_month"),
       partitioning = c("facility_state", "db_type", "year"),
