@@ -11,6 +11,8 @@ suppressMessages({
   }
 })
 
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+
 # Load .env file FIRST
 if (file.exists(".env")) {
   dotenv::load_dot_env(".env")
