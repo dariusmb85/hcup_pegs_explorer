@@ -28,15 +28,15 @@ controller_normal <- crew.cluster::crew_controller_slurm(
     log_output               = "logs/slurm_normal_%j.out",
     log_error                = "logs/slurm_normal_%j.err",
     partition                = "highmem",
-    cpus_per_task            = 1,
-    memory_gigabytes_per_cpu = 48,
-    time_minutes             = 240
+    cpus_per_task            = 4,
+    memory_gigabytes_per_cpu = 12,
+    time_minutes             = 480
   )
 )
 
 controller_highmem <- crew.cluster::crew_controller_slurm(
   name                       = "controller_highmem",
-  workers                    = 3,
+  workers                    = 2,
   seconds_interval           = 30,
   seconds_idle               = 300,
   seconds_launch             = 86400,
@@ -50,8 +50,8 @@ controller_highmem <- crew.cluster::crew_controller_slurm(
     log_output               = "logs/slurm_highmem_%j.out",
     log_error                = "logs/slurm_highmem_%j.err",
     partition                = "highmem",
-    cpus_per_task            = 1,
-    memory_gigabytes_per_cpu = 64,
+    cpus_per_task            = 8,
+    memory_gigabytes_per_cpu = 12,
     time_minutes             = 720
   )
 )
@@ -147,7 +147,7 @@ list(
       check_file_exists(fs::path(paths$silver, "visit"))
     },
     format     = "file",
-    deployment = "main"
+    # deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
@@ -161,7 +161,7 @@ list(
       check_file_exists(fs::path(paths$silver, "visit"))
     },
     format     = "file",
-    deployment = "main"
+    # deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
@@ -175,7 +175,7 @@ list(
       check_file_exists(fs::path(paths$silver, "visit_clean"))
     },
     format     = "file",
-    deployment = "main"
+    # deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
