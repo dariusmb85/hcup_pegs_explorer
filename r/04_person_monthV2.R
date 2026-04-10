@@ -124,7 +124,7 @@ main <- function() {
   # Split into list of single-row data frames for furrr
   chunk_list <- split(chunks, seq_len(nrow(chunks)))
 
-  n_cores <- min(length(chunk_list), parallel::detectCores() - 1L, 8L)
+  n_cores <- min(length(chunk_list), parallel::detectCores() - 1L, 4L)
   message(glue("Processing {length(chunk_list)} chunks using {n_cores} workers\n"))
 
   library(furrr)
