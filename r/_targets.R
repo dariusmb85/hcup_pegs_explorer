@@ -28,8 +28,8 @@ controller_normal <- crew.cluster::crew_controller_slurm(
     log_output               = "logs/slurm_normal_%j.out",
     log_error                = "logs/slurm_normal_%j.err",
     partition                = "highmem",
-    cpus_per_task            = 4,
-    memory_gigabytes_per_cpu = 12,
+    cpus_per_task            = 1,
+    memory_gigabytes_per_cpu = 48,
     time_minutes             = 240
   )
 )
@@ -50,8 +50,8 @@ controller_highmem <- crew.cluster::crew_controller_slurm(
     log_output               = "logs/slurm_highmem_%j.out",
     log_error                = "logs/slurm_highmem_%j.err",
     partition                = "highmem",
-    cpus_per_task            = 10,
-    memory_gigabytes_per_cpu = 12,
+    cpus_per_task            = 1,
+    memory_gigabytes_per_cpu = 64,
     time_minutes             = 720
   )
 )
