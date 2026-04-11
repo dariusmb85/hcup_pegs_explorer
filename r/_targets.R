@@ -114,7 +114,6 @@ list(
       )
     },
     format     = "file",
-    deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
@@ -133,7 +132,6 @@ list(
         .[!grepl("2015.*(q1q3|q4)", .)]
     },
     format     = "file",
-    deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
@@ -147,7 +145,6 @@ list(
       check_file_exists(fs::path(paths$silver, "visit"))
     },
     format     = "file",
-    # deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
@@ -161,7 +158,6 @@ list(
       check_file_exists(fs::path(paths$silver, "visit"))
     },
     format     = "file",
-    # deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
@@ -175,7 +171,6 @@ list(
       check_file_exists(fs::path(paths$silver, "visit_clean"))
     },
     format     = "file",
-    # deployment = "main"
   ),
 
   # --------------------------------------------------------------------------
