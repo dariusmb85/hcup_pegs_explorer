@@ -51,7 +51,7 @@ controller_highmem <- crew.cluster::crew_controller_slurm(
     log_error                = "logs/slurm_highmem_%j.err",
     partition                = "highmem",
     cpus_per_task            = 8,
-    memory_gigabytes_per_cpu = 12,
+    memory_gigabytes_per_cpu = 16,
     time_minutes             = 720
   )
 )
