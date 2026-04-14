@@ -1,6 +1,6 @@
 # HCUP PEGS Explorer
 
-Environment-Wide Association Study (ExWAS) platform for linking administrative health data (HCUP) with environmental exposures, modeled after the NIEHS [PEGS (Population-Based Exposure and Genomic Studies)](https://www.niehs.nih.gov/research/clinical/studies/pegs) approach.
+Environment-Wide Association Study (ExWAS) platform linking administrative health data (HCUP) with environmental exposures, modeled after the NIEHS [PEGS (Personalized Environment and Genes Study)](https://www.niehs.nih.gov/research/clinical/studies/pegs) approach.
 
 ---
 
@@ -9,87 +9,133 @@ Environment-Wide Association Study (ExWAS) platform for linking administrative h
 This pipeline analyzes associations between area-level environmental exposures (wildfire smoke, air pollution, temperature) and health outcomes using hospital administrative data from the Healthcare Cost and Utilization Project (HCUP).
 
 **Key Features:**
-- Automated data harmonization across HCUP database types (SID, SEDD, SASD)
+- Fully automated end-to-end pipeline orchestrated with `{targets}` + `{crew}` on SLURM
+- Parallel processing via `{furrr}` for silver harmonization and person-month cohort building
 - Monthly temporal resolution preserving acute exposure effects
 - Sex-stratified analysis with temporal confounding controls
-- Dual ICD-9/ICD-10 phenotype definitions
-- Scalable to multi-state analyses
+- Dual ICD-9/ICD-10 phenotype definitions via PheCode mapping
+- SHA-256 person ID hashing for PHI protection
+- Scalable partitioned Parquet output throughout (Apache Arrow)
+- Config-driven ExWAS via `analysis_spec.yaml` — no code changes needed between runs
+- Interactive Shiny explorer for pre-computed ExWAS results *(in development)*
 
-**Current Implementation:**
-- Test dataset: Utah 2012-2014 (2.9M person-months, 8 phenotypes)
-- Production target: 4 states, 2016-2020+ (~40M+ person-months)
+**Production Status:**
+- 4 states: Colorado (2017–2020), North Carolina (2007–2020), Oregon (2015–2021), Utah (2000–2020)
+- ~109M raw visits → ~111M harmonized visits after geocoding
+- 8 phenotypes, 10 exposures, 4 model specifications
+- Full pipeline runtime: ~4 hours on NIEHS SLURM highmem partition
 
 ---
 
 ## Pipeline Architecture
+
 ```
-┌─────────────┐
-│ HCUP Bronze │  Raw state data (SID, SEDD, SASD)
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   Silver    │  Harmonized visits + demographics
-└──────┬──────┘
-       │
-       ├──────────────┐
-       ▼              ▼
-┌─────────────┐  ┌──────────────┐
-│  Geocoding  │  │  Exposures   │  Dataverse monthly ZIP-level
-└──────┬──────┘  └──────┬───────┘
-       │                │
-       ▼                │
-┌─────────────┐         │
-│   Cohort    │  Person-months + phenotypes
-└──────┬──────┘         │
-       │                │
-       └────────┬───────┘
-                ▼
-         ┌─────────────┐
-         │    Join     │  Exposures → Person-months
-         └──────┬──────┘
-                ▼
-         ┌─────────────┐
-         │   Rollup    │  Long format for ExWAS
-         └──────┬──────┘
-                ▼
-         ┌─────────────┐
-         │    ExWAS    │  Stratified regressions
-         └─────────────┘
+┌─────────────────────────────────┐
+│         HCUP Bronze             │  Raw state parquet files (SID, SEDD, SASD)
+│  CO·NC·OR·UT  │  2000–2021      │  Includes 2015 quarterly harmonization
+└──────────────┬──────────────────┘
+               │  harmonize_2015 → bronze_files
+               ▼
+┌─────────────────────────────────┐
+│           Silver Layer          │  Harmonized visits + demographics
+│  01_hcup_silver.R               │  Parallel: 8 furrr workers
+│  ICD→PheCode mapping            │  ~57 min (SLURM main process)
+└──────────────┬──────────────────┘
+               │
+        ┌──────┴──────┐
+        ▼             ▼
+┌──────────────┐  ┌───────────────────┐
+│  Geocoding   │  │    Exposures      │
+│  015_geocode │  │  02_dataverse     │
+│  ZIP→Tract   │  │  HMS·MERRA2·      │
+│  99.6% match │  │  TerraClimate     │
+│  ~15 min     │  │  ~5 min           │
+└──────┬───────┘  └────────┬──────────┘
+       │                   │
+       ▼                   │
+┌──────────────┐           │
+│  QC+Cleaning │           │
+│  07_data_    │           │
+│  quality.R   │           │
+│  ~2h 8m      │           │
+└──────┬───────┘           │
+       │                   │
+       ▼                   │
+┌──────────────┐           │
+│ Person-Month │           │
+│   Cohort     │           │
+│ 04_person_   │           │
+│ monthV2.R    │           │
+│ Parallel:    │           │
+│ state×year   │           │
+│ chunks       │           │
+│ ~1h 52m      │           │
+└──────┬───────┘           │
+       │                   │
+       └──────────┬────────┘
+                  ▼
+         ┌─────────────────┐
+         │   Join          │  Person-months × Exposures
+         │ 05_join_        │  by person_id + ym
+         │ exposures.R     │
+         │ ~6 min          │
+         └────────┬────────┘
+                  ▼
+         ┌─────────────────┐
+         │   Rollup        │  Long format: mean/max/p90/sum
+         │ 03_exposure_    │  per person × month × exposure
+         │ rollup.R        │
+         │ ~33 min         │
+         └────────┬────────┘
+                  ▼
+         ┌─────────────────┐
+         │    ExWAS        │  Config-driven stratified logistic
+         │ 06_exwas_       │  regression
+         │ stratified.R    │
+         └─────────────────┘
 ```
+
+**Total pipeline runtime: ~4 hours on NIEHS SLURM highmem partition**
 
 ---
 
 ## Data Sources
 
 ### Health Data: HCUP
-- **SID (State Inpatient Databases):** Hospital discharges
-- **SEDD (State Emergency Department Databases):** ED visits
-- **SASD (State Ambulatory Surgery Databases):** Outpatient procedures
+| Database | Description | States Available |
+|---|---|---|
+| SID | State Inpatient Databases | CO, NC, OR, UT |
+| SEDD | State Emergency Department Databases | CO, NC, OR, UT |
+| SASD | State Ambulatory Surgery Databases | — |
 
 ### Environmental Data: Harvard Dataverse
-Pre-aggregated monthly ZIP-level exposures from [Amadeus-aggregated dataset](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/0WILGX):
-- **HMS Wildfire Smoke:** Light, medium, heavy coverage (NOAA)
-- **PM2.5 Proxies:** Dust, black carbon (MERRA-2 satellite)
-- **Temperature:** Max, min (TerraClimate)
+Pre-aggregated monthly ZIP-level exposures from the [Amadeus-aggregated dataset](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/0WILGX):
+
+| ID | Source | Description |
+|---|---|---|
+| `hms_smoke_light/medium/heavy` | NOAA HMS | Wildfire smoke coverage by density |
+| `pm25_dust` | MERRA-2 | Dust PM2.5 surface mass concentration |
+| `pm25_black_carbon` | MERRA-2 | Black carbon surface mass concentration |
+| `ozone_daily_max_8hr` | AQS | Daily max 8-hour ozone |
+| `temp_min/max` | gridMET | Daily min/max temperature |
+| `temp_minimum/maximum` | TerraClimate | Monthly min/max temperature |
 
 ### Geocoding: HUD USPS Crosswalk
 - ZIP Code → Census Tract mapping
-- 99.6% match rate in test data
+- **Match rate: 99.6%** (111.5M → 109.5M matched visits)
 
 ---
 
 ## Installation
 
 ### Requirements
-- R ≥ 4.0
-- HPC cluster with SLURM (for production runs)
-- ~50GB disk space (test data)
-- ~500GB+ disk space (production data)
+- R ≥ 4.3
+- HPC cluster with SLURM
+- ~50 GB disk (test data), ~500 GB+ (production)
+- R packages: `targets`, `crew`, `crew.cluster`, `arrow`, `furrr`, `dplyr`, `tidyr`, `broom`, `yaml`, `here`, `fs`, `glue`, `lubridate`, `stringr`, `scales`, `digest`, `httr`, `jsonlite`, `dataverse`, `amadeus`
 
 ### Setup
 ```bash
-# Clone repository
 git clone https://github.com/dariusmb85/hcup_pegs_explorer.git
 cd hcup_pegs_explorer
 
@@ -98,38 +144,54 @@ make init
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your:
-#   - PERSON_ID_SALT (random string for hashing)
-#   - HUD_API_KEY (from https://www.huduser.gov/portal/dataset/uspszip-api.html)
-#   - DATAVERSE_API_KEY (from https://dataverse.harvard.edu)
+# Edit .env:
+#   PARQUET_ROOT=./data         (or path to your data directory)
+#   PERSON_ID_SALT=<random>     (for SHA-256 person ID hashing)
+#   HUD_API_KEY=<key>           (https://www.huduser.gov/portal/dataset/uspszip-api.html)
+#   DATAVERSE_API_KEY=<key>     (https://dataverse.harvard.edu)
 ```
 
 ---
 
-## Quick Start
+## Running the Pipeline
 
-### Local Execution (Test Data)
+### Full Pipeline (SLURM)
 ```bash
-# Run full pipeline
-make pipeline
-
-# Submit ExWAS to SLURM (recommended)
-make slurm-exwas
-
-# Monitor progress
-make check-slurm
-tail -f logs/exwas_*.log
+bash run_pipeline.sh
 ```
 
-### Individual Steps
+The pipeline is orchestrated via `{targets}`. The `run_pipeline.sh` script submits a SLURM job that calls `tar_make()`. Progress can be monitored via:
+
 ```bash
-make silver      # Step 1: HCUP harmonization
-make geocode     # Step 2: ZIP → tract geocoding
-make exposures   # Step 3: Download environmental data
-make cohort      # Step 4: Build person-month cohort
-make join        # Step 5: Join exposures to cohort
-make rollup      # Step 6: Create exposure rollup
-make exwas       # Step 7: Run ExWAS (local, slow)
+tail -f logs/full_pipeline_*.log
+tail -f logs/silver_progress.log    # per-file silver progress
+squeue -u $USER                     # SLURM job status
+```
+
+### Individual Targets
+```r
+library(targets)
+tar_make(silver_layer)           # Step 1: harmonize + PheCode map
+tar_make(geocoded_visits)        # Step 2: ZIP → tract
+tar_make(qc_and_clean)           # Step 3: quality checks + clean
+tar_make(person_month_cohort)    # Step 4: person-month cohort
+tar_make(exposures_downloaded)   # Step 5: download exposures
+tar_make(joined_data)            # Step 6: join exposures
+tar_make(exposure_rollup_complete) # Step 7: rollup metrics
+```
+
+### ExWAS
+```bash
+# Using default analysis spec
+Rscript r/06_exwas_stratified.R
+
+# Using custom spec
+Rscript r/06_exwas_stratified.R config/analysis_asthma_smoke.yaml
+```
+
+### Shiny Explorer *(in development)*
+```r
+shiny::runApp("shiny")
 ```
 
 ---
@@ -137,162 +199,147 @@ make exwas       # Step 7: Run ExWAS (local, slow)
 ## Configuration
 
 ### Phenotype Definitions (`config/covariates.yaml`)
+Phenotypes are defined using PheCode mappings (ICD-9 and ICD-10 compatible):
 
-Phenotypes defined with both ICD-9 and ICD-10 codes:
 ```yaml
 phenotypes:
   asthma:
     label: "Asthma"
-    icd9_prefixes: ["493"]
-    icd10_prefixes: ["J45"]
-    description: "Asthma encounters"
-  
-  respiratory_infection:
-    label: "Respiratory Infection"
-    icd9_prefixes: ["460", "461", ..., "487"]
-    icd10_prefixes: ["J00", "J01", ..., "J22"]
+    phecodes: ["495"]
+  copd:
+    label: "COPD"
+    phecodes: ["496", "496.1", "496.2"]
+```
+
+Current phenotypes: Asthma, COPD, Respiratory Infection, Cardiovascular Disease, Stroke, Diabetes, Pregnancy, Mental Health
+
+### Analysis Spec (`config/analysis_spec.yaml`)
+Controls ExWAS runs without touching code:
+
+```yaml
+analysis:
+  name: "asthma_smoke_adjusted"
+  outcomes: ["asthma_flag"]
+  exposures: ["hms_smoke_heavy", "hms_smoke_medium"]
+  models: ["logit_adjusted_temporal_overall"]
+  filters:
+    states: ["NC", "UT"]
+    year_min: 2015
+    year_max: 2020
+    sex: "all"
+  extra_covariates: ["age", "race"]
 ```
 
 ### ExWAS Models
+| Model ID | Strata | Formula |
+|---|---|---|
+| `logit_unadjusted_overall` | All | `outcome ~ exposure` |
+| `logit_adjusted_temporal_overall` | All | `outcome ~ exposure + year + season` |
+| `logit_adjusted_temporal_male` | Male | `outcome ~ exposure + year + season` |
+| `logit_adjusted_temporal_female` | Female | `outcome ~ exposure + year + season` |
 
-Three adjustment levels × three sex strata = 9 models:
+---
 
-**Adjustment Levels:**
-1. **Unadjusted:** `outcome ~ exposure`
-2. **Temporal:** `outcome ~ exposure + year + season`
-3. **Full:** `outcome ~ exposure + year + season + db_type + age + female + race`
+## SLURM Configuration
 
-**Sex Strata:**
-- Overall (sex as covariate)
-- Males only
-- Females only
+The pipeline uses two SLURM controllers via `{crew.cluster}`:
+
+| Controller | CPUs | Memory | Time | Used for |
+|---|---|---|---|---|
+| `controller_normal` | 4 | 48 GB | 4h | Exposures, join, rollup |
+| `controller_highmem` | 8–16 | 96–192 GB | 12h | Person-month cohort |
+
+Targets with `deployment = "main"` (silver, geocoding, QC) run on the submit node directly.
+
+---
+
+## Output Structure
+
+```
+data/
+├── bronze/                          # Raw HCUP parquet files
+├── silver/
+│   ├── visit/                       # Harmonized visits (partitioned by state/db_type/year)
+│   └── visit_clean/                 # QC-filtered visits
+└── gold/
+    ├── quality_checks/              # QC reports + issue CSVs
+    ├── person_month/                # Person-month cohort (partitioned)
+    ├── exposures_monthly/           # Downloaded exposure data
+    ├── person_month_exposures/      # Joined dataset (partitioned)
+    ├── exposure_rollup/             # Long format rollup (partitioned)
+    └── exwas_result_stratified/     # ExWAS results (partitioned by state/strata/model)
+        exwas_{analysis_name}.parquet  # Flat result files per analysis
+```
+
+All datasets use partitioned Apache Parquet format (`facility_state / db_type / year`) for efficient querying with `{arrow}`.
 
 ---
 
 ## Key Technical Features
 
-### 1. ICD Version Heterogeneity
+### 1. Parallel Silver Processing
+Bronze files are processed in parallel using `{furrr}` (8 workers). Each file writes independently to its own partition, eliminating write collisions.
 
-Handles both ICD-9 (pre-October 2015) and ICD-10 (post-October 2015):
+### 2. ICD Version Heterogeneity
+Handles ICD-9 (pre-October 2015) and ICD-10 (post-October 2015) via vectorized PheCode mapping. The 2015 HCUP quarterly split (Q1–Q3 ICD-9, Q4 ICD-10) is harmonized automatically.
+
+### 3. Temporal Confounding Controls
+**Problem:** Wildfire season (summer) ≠ Flu season (winter)  
+**Solution:** Season + year fixed effects in all adjusted models  
+**Impact:** Smoke → respiratory infection association changes from OR=0.72 (spuriously protective) to OR=0.95 (null) after adjustment
+
+### 4. Memory-Efficient Cohort Building
+Person-month cohort is built in state×year chunks (94 chunks for current dataset) processed in parallel, preventing OOM errors on 109M+ visit datasets.
+
+### 5. Person ID Hashing
+PHI protection via SHA-256 with project-specific salt:
 ```r
-dx_matches_phenotype <- function(dx_codes, icd9_prefixes, icd10_prefixes) {
-  icd9_match <- any(sapply(icd9_prefixes, function(p) grepl(paste0("^", p), dx_codes)))
-  icd10_match <- any(sapply(icd10_prefixes, function(p) grepl(paste0("^", p), dx_codes)))
-  return(icd9_match || icd10_match)
-}
-```
-
-### 2. Temporal Confounding Controls
-
-Critical for environmental ExWAS:
-
-**Problem:** Wildfire season (summer) ≠ Flu season (winter)
-
-**Solution:** Season + year fixed effects
-
-**Impact:** Smoke → RI association changes from OR=0.72 (protective?!) to OR=0.95 (null) after adjustment
-
-### 3. Visit Type Adjustment
-
-Accounts for severity differences:
-- **SEDD (ED):** Acute presentations
-- **SID (Inpatient):** Severe cases requiring admission
-
-### 4. Person ID Hashing
-
-PHI protection via SHA-256:
-```r
-person_id <- map_chr(format(visit_key, scientific=FALSE), 
-                     ~digest::digest(paste0(., SALT), algo="sha256"))
+person_id <- digest::digest(paste0(visit_key, SALT), algo = "sha256")
 ```
 
 ---
 
-## Output Structure
-```
-data_test/
-├── bronze/              # Raw HCUP files (symlink)
-├── silver/
-│   ├── person/         # Person-level demographics
-│   └── visit/          # Visit-level records
-└── gold/
-    ├── person_month/           # Person-month cohort
-    ├── exposures_monthly/      # Environmental exposures
-    ├── person_month_exposures/ # Joined dataset
-    ├── exposure_rollup/        # Long format for ExWAS
-    └── exwas_result_stratified/
-        ├── all/        # Overall stratum results
-        ├── male/       # Male-only results
-        └── female/     # Female-only results
-```
+## Roadmap
 
----
-
-
+- [ ] Geographic event linkage (acute exposure events by ZIP/tract × time window)
+- [ ] Shiny ExWAS explorer (forest plots, filtering by phenotype/exposure/p-value)
+- [ ] Config-driven covariate selection in analysis specs
+- [ ] Additional states and years
+- [ ] Additional exposure sources (RSEI, LandScan, Radon, AP)
+- [ ] Cumulative exposure metrics (rolling windows)
 
 ---
 
 ## Comparison to PEGS
 
-| Feature | PEGS | This Pipeline |
-|---------|------|---------------|
+| Feature | PEGS | HCUP PEGS Explorer |
+|---|---|---|
 | **Data** | Survey (individual-level) | Claims (area-level) |
 | **Design** | Cross-sectional | Longitudinal |
 | **Exposures** | Biomarkers, questionnaires | Environmental (ZIP/tract) |
 | **Phenotypes** | Self-report + clinical | ICD-coded diagnoses |
-| **Adjustments** | Age, sex, race | **+ year, season, db_type** |
-| **Temporal controls** | None | **Season + year** |
-| **Stratification** | Sex | Sex |
-
-**Advantages:**
-- ✅ Rigorous temporal confounding control
-- ✅ Longitudinal consistency assessment
-- ✅ Objective diagnoses (ICD codes)
-- ✅ Large sample sizes
-
-**Limitations:**
-- ⚠️ Ecological exposure (ZIP-level, not individual)
-- ⚠️ Healthcare-seeking bias
-- ⚠️ Only diagnosed cases
-
----
-
-## Contributing
-
-This is an active research project. Contributions welcome for:
-- Additional phenotype definitions
-- Exposure data sources
-- Computational optimizations
-- Visualization tools
-
-Please open an issue to discuss before submitting pull requests.
-
----
-
-## License
-
-**Data Access Requirements:**
-- HCUP data requires DUA with AHRQ
-- Dataverse exposures are publicly available
-- HUD API requires free registration
-
-**Code:** MIT License (see LICENSE file)
+| **Sample size** | ~19,000 enrolled | ~109M visits |
+| **Adjustments** | Age, sex, race | + year, season, db_type |
+| **Temporal controls** | None | Season + year fixed effects |
+| **Stratification** | Sex | Sex, state, year range |
+| **Pipeline** | Manual | Fully automated (targets + SLURM) |
 
 ---
 
 ## Acknowledgments
 
 - **NIEHS PEGS** for methodological framework
-- **Harvard Dataverse** for pre-aggregated environmental exposures
+- **Harvard Dataverse / Amadeus** for pre-aggregated environmental exposures
 - **AHRQ HCUP** for administrative health data
 - **HUD** for ZIP-tract crosswalk API
 
 ---
 
-## Related Projects
+## License
 
-- [NIEHS PEGS](https://www.niehs.nih.gov/research/clinical/studies/pegs)
-- [Amadeus R Package](https://github.com/Spatiotemporal-Exposures-and-Toxicology)
-- [Dataverse Environmental Data](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/0WILGX)
+**Data Access Requirements:**
+- HCUP data requires a Data Use Agreement (DUA) with AHRQ
+- Dataverse exposures are publicly available
+- HUD API requires free registration
 
----
+**Code:** MIT License — see `LICENSE`
